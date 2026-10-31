@@ -1,0 +1,16 @@
+{
+  "type": "player_profile",
+  "source": "https://liga5x5.ru/player/6716913",
+  "player": {
+    "player_id": 6716913,
+    "player_url": "https://liga5x5.ru/player/6716913",
+    "name": "Об игроке",
+    "team": "ГОЛД",
+    "team_url": "https://liga5x5.ru/team/1460963",
+    "team_id": 1460963,
+    "photo_url": null,
+    "position": "",
+    "seasons": [],
+    "career_totals": {}
+  }
+}

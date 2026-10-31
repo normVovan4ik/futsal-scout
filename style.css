@@ -1,0 +1,73 @@
+/* Стили для FUT-карточки футзала */
+
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.fut-card-body {
+  background: linear-gradient(135deg, #1e1b18 0%, #29241d 30%, #151412 70%, #0d0c0b 100%);
+  border: 3px solid #d4af37;
+  box-shadow: 0 0 35px rgba(212, 175, 55, 0.25), inset 0 0 25px rgba(212, 175, 55, 0.1);
+  transform-style: preserve-3d;
+  transition: transform 0.15s ease-out, box-shadow 0.2s ease;
+}
+
+.fut-card-body:hover {
+  box-shadow: 0 0 45px rgba(245, 158, 11, 0.4), inset 0 0 30px rgba(245, 158, 11, 0.2);
+}
+
+/* Золотой текст с металлическим переливом */
+.card-text-gold {
+  background: linear-gradient(180deg, #fff3c4 0%, #fbd45d 50%, #d49e1a 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
+}
+
+/* Голографический эффект */
+.card-glare {
+  background: radial-gradient(
+    circle at 50% 0%,
+    rgba(255, 255, 255, 0.25) 0%,
+    rgba(255, 215, 0, 0.1) 40%,
+    transparent 70%
+  );
+  opacity: 0.7;
+  mix-blend-mode: overlay;
+  transition: opacity 0.3s;
+}
+
+/* Бейджи достижений */
+.futsal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  animation: fadeInBadge 0.3s ease-out;
+}
+
+@keyframes fadeInBadge {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Полоски Head-to-Head */
+.h2h-bar-p1 {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+.h2h-bar-p2 {
+  background: linear-gradient(90deg, #06b6d4, #22d3ee);
+}

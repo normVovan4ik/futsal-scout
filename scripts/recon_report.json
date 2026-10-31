@@ -1,0 +1,645 @@
+{
+  "https://ffge.nagradion.ru/": {
+    "domain": "ffge.nagradion.ru",
+    "base_url": "https://ffge.nagradion.ru/",
+    "title": "Федерации футбола города Екатеринбурга | ФФГЕ | Система спортивной статистики Наградион",
+    "tech": [
+      "React (JS рендеринг)"
+    ],
+    "robots_txt": "User-agent: Yandex\nUser-agent: Googlebot\nUser-agent: Bingbot\nUser-agent: DuckDuckBot\nAllow: /$\nAllow: /tournament\nAllow: /player\nDisallow: /\nCrawl-delay: 5\nSitemap: https://ffge.nagradion.ru/sitemap/sitemap.xml\nHost: ffge.nagradion.ru\n\nUser-agent: *\nDisallow: /\n",
+    "sitemap_hints": [],
+    "key_links": [
+      {
+        "url": "https://ffge.nagradion.ru/app",
+        "text": "мобильное приложение системы статистики наградион"
+      },
+      {
+        "url": "https://ffge.nagradion.ru/tournament-plan",
+        "text": "календарный план соревнований"
+      }
+    ],
+    "all_path_patterns": [
+      "/app/",
+      "/broadcasts/help/",
+      "/info/public-offer/",
+      "/insurance/",
+      "/partners/",
+      "/public-offer/",
+      "/tournament-plan/"
+    ],
+    "tables": [],
+    "api_hints": [],
+    "error": null,
+    "stat_pages": {}
+  },
+  "https://ligastart.ru/": {
+    "domain": "ligastart.ru",
+    "base_url": "https://ligastart.ru/",
+    "title": "Лига Старт. Официальный сайт",
+    "tech": [],
+    "robots_txt": "User-agent: *\nDisallow: /\n\nUser-agent: Googlebot\nUser-agent: Yandex\nUser-agent: Bingbot\nUser-agent: Applebot\nUser-agent: DuckDuckBot\nUser-agent: TelegramBot\nUser-agent: vkShare\nUser-agent: WhatsApp\nUser-agent: facebookexternalhit\nUser-agent: Twitterbot\nUser-agent: Discordbot\nUser-agent: Slackbot\nUser-agent: LinkedInBot\nUser-agent: SkypeUriPreview\nUser-agent: Viber\nDisallow: /matches\nDisallow: /player\nDisallow: /participants\n\nUser-agent: Google-Extended\nDisallow: /\n",
+    "sitemap_hints": [],
+    "key_links": [
+      {
+        "url": "https://ligastart.ru/",
+        "text": "лига старт"
+      },
+      {
+        "url": "https://vk.com/diko.league_start",
+        "text": ""
+      },
+      {
+        "url": "https://instagram.com/start_league_ekb?igshid=YmMyMTA2M2Y=",
+        "text": ""
+      },
+      {
+        "url": "https://ligastart.ru/stats",
+        "text": "лига в цифрах и фактах"
+      },
+      {
+        "url": "https://ligastart.ru/tournaments",
+        "text": "все турниры"
+      },
+      {
+        "url": "https://ligastart.ru/tournament/1067411/tables",
+        "text": "вся таблица"
+      },
+      {
+        "url": "https://ligastart.ru/tournament/1067514/tables",
+        "text": "футзал дети 12\\13"
+      },
+      {
+        "url": "https://ligastart.ru/tournament/1067516",
+        "text": ""
+      },
+      {
+        "url": "https://ligastart.ru/tournament/1067517",
+        "text": ""
+      },
+      {
+        "url": "https://ligastart.ru/tournament/1067518",
+        "text": ""
+      },
+      {
+        "url": "https://ligastart.ru/tournament/1067519",
+        "text": ""
+      },
+      {
+        "url": "https://ligastart.ru/tournament/1067520",
+        "text": ""
+      },
+      {
+        "url": "https://ligastart.ru/tournament/1062490",
+        "text": ""
+      },
+      {
+        "url": "https://ligastart.ru/tournament/1062491",
+        "text": ""
+      },
+      {
+        "url": "https://ligastart.ru/tournament/1062524",
+        "text": ""
+      },
+      {
+        "url": "https://ligastart.ru/tournament/1062526",
+        "text": ""
+      },
+      {
+        "url": "https://ligastart.ru/participants/teams",
+        "text": "команды"
+      },
+      {
+        "url": "https://ligastart.ru/participants/players",
+        "text": "игроки"
+      },
+      {
+        "url": "https://ligastart.ru/page/1027982",
+        "text": "заявиться на турнир"
+      },
+      {
+        "url": "https://ligastart.ru/posts/1169104",
+        "text": "3 дивизион: «полином» — чемпион! павел шапошников — лучший и"
+      }
+    ],
+    "all_path_patterns": [
+      "/application/",
+      "/login/",
+      "/match/5904014/",
+      "/match/5904016/",
+      "/match/5904017/",
+      "/match/5904018/",
+      "/match/5916367/",
+      "/match/5926742/",
+      "/match/5926743/",
+      "/match/5931078/",
+      "/match/5931080/",
+      "/match/5933723/",
+      "/match/5945142/",
+      "/match/5945143/",
+      "/match/5945144/",
+      "/match/5955498/",
+      "/match/5955499/",
+      "/match/5955500/",
+      "/match/5955501/",
+      "/match/5962904/",
+      "/match/5962905/",
+      "/match/5962906/",
+      "/match/5962907/",
+      "/match/5965072/",
+      "/match/5965073/",
+      "/match/5965074/",
+      "/match/5965075/",
+      "/match/5965076/",
+      "/match/5968249/",
+      "/match/5968563/",
+      "/match/5968567/",
+      "/match/5968571/",
+      "/match/5968580/",
+      "/match/5968584/",
+      "/match/5968585/",
+      "/match/5968586/",
+      "/match/5968587/",
+      "/match/5968589/",
+      "/match/5969019/",
+      "/match/5969020/"
+    ],
+    "tables": [
+      {
+        "class": [
+          "blk-tournamentswidget__content"
+        ],
+        "id": null,
+        "headers": [
+          "",
+          "#",
+          "Команда",
+          "И",
+          "О"
+        ],
+        "first_row_sample": [
+          "",
+          "1",
+          "МФК \"Старт” Pro",
+          "4",
+          "9"
+        ]
+      },
+      {
+        "class": [
+          "blk-tournamentswidget__content"
+        ],
+        "id": null,
+        "headers": [],
+        "first_row_sample": [
+          "21:00",
+          "ФБР Металл Екатеринбург",
+          "1 - 11",
+          "УРФУ"
+        ]
+      },
+      {
+        "class": [
+          "blk-tournamentswidget__content"
+        ],
+        "id": null,
+        "headers": [],
+        "first_row_sample": [
+          "22:00",
+          "Спортмастер",
+          "- : -",
+          "Masteroad Екатеринбург"
+        ]
+      },
+      {
+        "class": [
+          "blk-tournamentswidget__content"
+        ],
+        "id": null,
+        "headers": [
+          "Игрок",
+          "Г",
+          "И"
+        ],
+        "first_row_sample": [
+          "",
+          "Ершов Владимир",
+          "10",
+          "4"
+        ]
+      },
+      {
+        "class": [
+          "blk-tournamentswidget__content"
+        ],
+        "id": null,
+        "headers": [
+          "Игрок",
+          "П",
+          "И"
+        ],
+        "first_row_sample": [
+          "",
+          "Паньков Фёдор",
+          "4",
+          "2"
+        ]
+      }
+    ],
+    "api_hints": [],
+    "error": null,
+    "stat_pages": {
+      "https://ligastart.ru/stats": {
+        "status": 200,
+        "title": "Лига в цифрах и фактах, Лига Старт. Официальный сайт",
+        "tables_count": 2,
+        "player_links_sample": [
+          "https://ligastart.ru/participants/players",
+          "https://ligastart.ru/player/10338279",
+          "https://ligastart.ru/player/10338279"
+        ],
+        "table_headers": [
+          [],
+          []
+        ]
+      },
+      "https://ligastart.ru/participants/players": {
+        "status": 200,
+        "title": "Игроки, Лига Старт. Официальный сайт",
+        "tables_count": 1,
+        "player_links_sample": [
+          "https://ligastart.ru/participants/players",
+          "https://ligastart.ru/participants/players?season_id=10126889",
+          "https://ligastart.ru/participants/players?season_id=10120962",
+          "https://ligastart.ru/participants/players?season_id=10126890",
+          "https://ligastart.ru/participants/players"
+        ],
+        "table_headers": [
+          [
+            "#",
+            "Игрок",
+            "И",
+            "Г (Пн., 10м)",
+            "Ср.",
+            "П",
+            "Ср.",
+            "Г+П"
+          ]
+        ]
+      }
+    },
+    "player_page_sample": {
+      "url": "https://ligastart.ru/participants/players",
+      "name_candidates": [
+        "h1: Игроки",
+        "h2: Партнеры"
+      ],
+      "tables": [
+        {
+          "headers": [
+            "#",
+            "Игрок",
+            "И",
+            "Г (Пн., 10м)",
+            "Ср.",
+            "П",
+            "Ср.",
+            "Г+П",
+            "ЖК",
+            "КК"
+          ],
+          "sample_rows": [
+            [
+              "1",
+              "Галиахметов Марат",
+              "36",
+              "71",
+              "1.97",
+              "30",
+              "0.83",
+              "101",
+              "2",
+              "0"
+            ],
+            [
+              "2",
+              "Шахабутдинов Эльмир",
+              "48",
+              "63 (3)",
+              "1.31",
+              "25",
+              "0.52",
+              "88",
+              "4",
+              "0"
+            ]
+          ]
+        }
+      ]
+    }
+  },
+  "https://liga5x5.ru/": {
+    "domain": "liga5x5.ru",
+    "base_url": "https://liga5x5.ru/",
+    "title": "Лига 5х5 I Екатеринбург. Официальный сайт",
+    "tech": [],
+    "robots_txt": "User-agent: *\nDisallow: /\n\nUser-agent: Googlebot\nUser-agent: Yandex\nUser-agent: Bingbot\nUser-agent: Applebot\nUser-agent: DuckDuckBot\nUser-agent: TelegramBot\nUser-agent: vkShare\nUser-agent: WhatsApp\nUser-agent: facebookexternalhit\nUser-agent: Twitterbot\nUser-agent: Discordbot\nUser-agent: Slackbot\nUser-agent: LinkedInBot\nUser-agent: SkypeUriPreview\nUser-agent: Viber\nDisallow: /matches\nDisallow: /player\nDisallow: /participants\n\nUser-agent: Google-Extended\nDisallow: /\n",
+    "sitemap_hints": [],
+    "key_links": [
+      {
+        "url": "https://liga5x5.ru/",
+        "text": "лига 5х5 i екатеринбург нас объединяет футбол"
+      },
+      {
+        "url": "https://liga5x5.ru/tournaments",
+        "text": "турниры"
+      },
+      {
+        "url": "https://liga5x5.ru/tournament/1067438/tables",
+        "text": "вся таблица"
+      },
+      {
+        "url": "https://liga5x5.ru/tournament/1067442/tables",
+        "text": "зал i 2 дивизион"
+      },
+      {
+        "url": "https://liga5x5.ru/tournament/1067444/tables",
+        "text": "зал i 3 дивизион"
+      },
+      {
+        "url": "https://liga5x5.ru/tournament/1067451/tables",
+        "text": "зал i 4 дивизион"
+      },
+      {
+        "url": "https://liga5x5.ru/tournament/1067452/tables",
+        "text": "зал i 5 дивизион"
+      },
+      {
+        "url": "https://liga5x5.ru/tournament/1067934/tables",
+        "text": "зимний чемпионат"
+      },
+      {
+        "url": "https://liga5x5.ru/tournament/1067661/tables",
+        "text": "лига 5х5 14/15"
+      },
+      {
+        "url": "https://liga5x5.ru/tournament/1067616/tables",
+        "text": "лига 5х5 16/17"
+      },
+      {
+        "url": "https://liga5x5.ru/tournament/1067689/tables",
+        "text": "лига 5х5 18/19"
+      },
+      {
+        "url": "https://liga5x5.ru/tournament/1067659/tables",
+        "text": "лига 5х5 19/20"
+      },
+      {
+        "url": "https://liga5x5.ru/tournament/1067878/tables",
+        "text": "лига 5х5 20/21"
+      },
+      {
+        "url": "https://vk.com/liga_5x5",
+        "text": "vk i лига 5х5"
+      },
+      {
+        "url": "https://t.me/liga_5x5",
+        "text": "tg i лига 5х5"
+      },
+      {
+        "url": "https://vk.com/liga_5x5_jr",
+        "text": "vk i лига 5х5 (дети)"
+      },
+      {
+        "url": "https://liga5x5.ru/participants/teams",
+        "text": "команды"
+      },
+      {
+        "url": "https://liga5x5.ru/participants/players",
+        "text": "игроки"
+      },
+      {
+        "url": "https://liga5x5.ru/stats",
+        "text": "статистика лиги"
+      },
+      {
+        "url": "https://liga5x5.ru/match/5957433",
+        "text": "31 окт 10:00 сбстадион junior 3х35 - 6лига 5х5 20/214 тур"
+      }
+    ],
+    "all_path_patterns": [
+      "/disqualifications/",
+      "/login/",
+      "/match/5886780/",
+      "/match/5886781/",
+      "/match/5886784/",
+      "/match/5886785/",
+      "/match/5886786/",
+      "/match/5886788/",
+      "/match/5886790/",
+      "/match/5886792/",
+      "/match/5886799/",
+      "/match/5886800/",
+      "/match/5886803/",
+      "/match/5886804/",
+      "/match/5886807/",
+      "/match/5886812/",
+      "/match/5886814/",
+      "/match/5886816/",
+      "/match/5886817/",
+      "/match/5886819/",
+      "/match/5886820/",
+      "/match/5886822/",
+      "/match/5886862/",
+      "/match/5887804/",
+      "/match/5887805/",
+      "/match/5887806/",
+      "/match/5887825/",
+      "/match/5887872/",
+      "/match/5887873/",
+      "/match/5887874/",
+      "/match/5887876/",
+      "/match/5890582/",
+      "/match/5890584/",
+      "/match/5945254/",
+      "/match/5945292/",
+      "/match/5945313/",
+      "/match/5945329/",
+      "/match/5945470/",
+      "/match/5945499/",
+      "/match/5945500/"
+    ],
+    "tables": [
+      {
+        "class": [
+          "blk-tournamentswidget__content"
+        ],
+        "id": null,
+        "headers": [
+          "",
+          "#",
+          "Команда",
+          "И",
+          "О"
+        ],
+        "first_row_sample": [
+          "",
+          "1",
+          "УрГПУ",
+          "5",
+          "15"
+        ]
+      },
+      {
+        "class": [
+          "blk-tournamentswidget__content"
+        ],
+        "id": null,
+        "headers": [],
+        "first_row_sample": [
+          "20:30",
+          "ФОРТУНА",
+          "2 - 6",
+          "TWIZZY TEAM"
+        ]
+      },
+      {
+        "class": [
+          "blk-tournamentswidget__content"
+        ],
+        "id": null,
+        "headers": [],
+        "first_row_sample": [
+          "21:10",
+          "УрГПУ",
+          "- : -",
+          "BURIK"
+        ]
+      },
+      {
+        "class": [
+          "blk-tournamentswidget__content"
+        ],
+        "id": null,
+        "headers": [
+          "Игрок",
+          "Г",
+          "И"
+        ],
+        "first_row_sample": [
+          "",
+          "Новоселов Владимир",
+          "16",
+          "4"
+        ]
+      },
+      {
+        "class": [
+          "blk-tournamentswidget__content"
+        ],
+        "id": null,
+        "headers": [
+          "Игрок",
+          "П",
+          "И"
+        ],
+        "first_row_sample": [
+          "",
+          "Вяткин Дмитрий",
+          "8",
+          "5"
+        ]
+      }
+    ],
+    "api_hints": [],
+    "error": null,
+    "stat_pages": {
+      "https://liga5x5.ru/participants/players": {
+        "status": 200,
+        "title": "Игроки, Лига 5х5 I Екатеринбург. Официальный сайт",
+        "tables_count": 1,
+        "player_links_sample": [
+          "https://liga5x5.ru/participants/players",
+          "https://liga5x5.ru/participants/players?season_id=all",
+          "https://liga5x5.ru/participants/players?season_id=10131311",
+          "https://liga5x5.ru/participants/players?season_id=10128940",
+          "https://liga5x5.ru/participants/players?season_id=10125419"
+        ],
+        "table_headers": [
+          [
+            "#",
+            "Игрок",
+            "И",
+            "Г (Пн., 10м)",
+            "Ср.",
+            "П",
+            "Ср.",
+            "Г+П"
+          ]
+        ]
+      },
+      "https://liga5x5.ru/stats": {
+        "status": 200,
+        "title": "Статистика лиги, Лига 5х5 I Екатеринбург. Официальный сайт",
+        "tables_count": 2,
+        "player_links_sample": [
+          "https://liga5x5.ru/participants/players",
+          "https://liga5x5.ru/player/6716913",
+          "https://liga5x5.ru/player/6716913"
+        ],
+        "table_headers": [
+          [],
+          []
+        ]
+      }
+    },
+    "player_page_sample": {
+      "url": "https://liga5x5.ru/participants/players",
+      "name_candidates": [
+        "h1: Игроки",
+        "h2: Партнеры"
+      ],
+      "tables": [
+        {
+          "headers": [
+            "#",
+            "Игрок",
+            "И",
+            "Г (Пн., 10м)",
+            "Ср.",
+            "П",
+            "Ср.",
+            "Г+П",
+            "ЖК",
+            "КК"
+          ],
+          "sample_rows": [
+            [
+              "1",
+              "Борисевич Владимир Сергеевич",
+              "8",
+              "36",
+              "4.5",
+              "0",
+              "0",
+              "36",
+              "0",
+              "0"
+            ],
+            [
+              "2",
+              "Бахарев Николай Сергееевич",
+              "28",
+              "20",
+              "0.71",
+              "16",
+              "0.57",
+              "36",
+              "3",
+              "1"
+            ]
+          ]
+        }
+      ]
+    }
+  }
+}
