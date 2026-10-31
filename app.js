@@ -61,6 +61,7 @@ async function doGlobalSearch() {
     return;
   }
 
+  window.lastSearchResults = data.results || [];
   cardsContainer.innerHTML = "";
   data.results.forEach(player => {
     const cardEl = document.createElement("div");
@@ -109,7 +110,7 @@ async function doGlobalSearch() {
     cardEl.innerHTML = '<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">' +
       '<div class="flex-1 min-w-0">' +
         '<div class="flex items-center gap-2 flex-wrap mb-1.5">' +
-          '<h4 class="text-lg font-black text-white hover:text-amber-300 transition">' + player.name + '</h4>' +
+          '<h4 class="text-lg font-black text-white hover:text-amber-300 transition">' + (player.full_name || player.name) + '</h4>' +
           '<div class="flex gap-1">' + leaguesBadges + '</div>' +
           (hasMultipleAccounts ? '<span class="px-2 py-0.5 rounded text-[10px] font-black bg-purple-500/20 text-purple-300 border border-purple-500/40">2+ аккаунта</span>' : '') +
         '</div>' +
@@ -163,20 +164,28 @@ function mergeAndLoadPlayer(player) {
 }
 
 function loadSingleAccountById(accId) {
-  // Находим аккаунт в текущих результатах поиска
   let foundPlayer = null;
   let targetAcc = null;
 
-  // Ищем через глобальные результаты
-  const searchCards = document.getElementById("global-search-cards");
-  // Если есть активный игрок
-  if (currentActivePlayer && currentActivePlayer.accounts) {
-    targetAcc = currentActivePlayer.accounts.find(a => a.account_id === accId);
+  const pool = (window.lastSearchResults || []);
+  for (let p of pool) {
+    if (p.accounts) {
+      const acc = p.accounts.find(a => String(a.account_id) === String(accId));
+      if (acc) {
+        foundPlayer = p;
+        targetAcc = acc;
+        break;
+      }
+    }
+  }
+
+  if (!targetAcc && currentActivePlayer && currentActivePlayer.accounts) {
+    targetAcc = currentActivePlayer.accounts.find(a => String(a.account_id) === String(accId));
     if (targetAcc) foundPlayer = currentActivePlayer;
   }
 
   if (!targetAcc) {
-    alert("Загрузка аккаунта #" + accId);
+    alert("Аккаунт #" + accId + " не найден");
     return;
   }
 
