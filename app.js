@@ -896,6 +896,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 // Переключение вкладок
 function switchTab(tabId) {
+  if (tabId === 'lineup') {
+    initLineup();
+  }
   document.querySelectorAll(".tab-content").forEach(el => {
     el.classList.add("hidden");
     el.classList.remove("block");
@@ -1519,5 +1522,468 @@ async function doTeamsSearch() {
     '</div>';
 
     cardsContainer.appendChild(cardEl);
+  });
+}
+
+
+// =============================================================================
+// Стартовая пятёрка (Lineup 5x5) и интерактивный паркет
+// =============================================================================
+const FORMATIONS = {
+  "1-2-1": {
+    name: "1-2-1 «Ромб»",
+    slots: [
+      { id: 0, pos: "GK", label: "Вратарь (GK)", x: 50, y: 86 },
+      { id: 1, pos: "FIX", label: "Столб/Фиксо (FIX)", x: 50, y: 64 },
+      { id: 2, pos: "ALA", label: "Левая бровка (L.ALA)", x: 20, y: 46 },
+      { id: 3, pos: "ALA", label: "Правая бровка (R.ALA)", x: 80, y: 46 },
+      { id: 4, pos: "PIV", label: "Наконечник (PIV)", x: 50, y: 20 }
+    ],
+    balance: "Классический баланс (Ромб)",
+    tacticTip: "Контроль мяча через ромб, изоляция столпа спиной к чужим воротам и резкие включения бровки на дальнюю штангу."
+  },
+  "2-2": {
+    name: "2-2 «Квадрат»",
+    slots: [
+      { id: 0, pos: "GK", label: "Вратарь (GK)", x: 50, y: 86 },
+      { id: 1, pos: "FIX", label: "Левый защитник (L.FIX)", x: 28, y: 64 },
+      { id: 2, pos: "FIX", label: "Правый защитник (R.FIX)", x: 72, y: 64 },
+      { id: 3, pos: "PIV", label: "Левый форвард (L.PIV)", x: 28, y: 24 },
+      { id: 4, pos: "PIV", label: "Правый форвард (R.PIV)", x: 72, y: 24 }
+    ],
+    balance: "Оборонительный блок / Контратаки",
+    tacticTip: "Плотная пара сзади блокирует центр, форварды на скорости убегают 2-в-2 при первом же перехвате."
+  },
+  "3-1": {
+    name: "3-1 «Пирамида»",
+    slots: [
+      { id: 0, pos: "GK", label: "Вратарь (GK)", x: 50, y: 86 },
+      { id: 1, pos: "ALA", label: "Левый инсайд (L.ALA)", x: 22, y: 56 },
+      { id: 2, pos: "FIX", label: "Опорный защитник (FIX)", x: 50, y: 66 },
+      { id: 3, pos: "ALA", label: "Правый инсайд (R.ALA)", x: 78, y: 56 },
+      { id: 4, pos: "PIV", label: "Чистый столп (PIV)", x: 50, y: 18 }
+    ],
+    balance: "Атака через мощного столпа",
+    tacticTip: "Тройка держит мяч перед штрафной, выводя одного столпа на удар с разворота и сбросы."
+  },
+  "5-0": {
+    name: "5 полевых (Power Play)",
+    slots: [
+      { id: 0, pos: "GK", label: "Гонила (Fly GK)", x: 20, y: 50 },
+      { id: 1, pos: "FIX", label: "Разыгрывающий (FIX)", x: 50, y: 58 },
+      { id: 2, pos: "ALA", label: "Правая бровка (ALA)", x: 80, y: 50 },
+      { id: 3, pos: "PIV", label: "Левая штанга (PIV)", x: 28, y: 20 },
+      { id: 4, pos: "PIV", label: "Правая штанга (PIV)", x: 72, y: 20 }
+    ],
+    balance: "Тотальный навал / 5-й полевой",
+    tacticTip: "Вратарь снят! Раскатка пятеркой в чужой зоне, поиск замыкания на дальней штанге. Любая потеря — удар по пустым!"
+  }
+};
+
+let currentLineupFormationKey = "1-2-1";
+let currentLineup = [null, null, null, null, null];
+let selectedLineupSlot = null;
+let currentBenchFilter = "ALL";
+let cachedBenchFavorites = [];
+
+function formatShortName(fullName) {
+  if (!fullName) return "Игрок";
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return parts[0] + " " + parts[1][0] + ".";
+  }
+  return parts[0];
+}
+
+function calculatePlayerOVR(p) {
+  if (!p) return 75;
+  const m = Math.max(1, p.matches || 1);
+  const g = p.goals || 0;
+  const a = p.assists || 0;
+  const pts = (g + a) / m;
+  const base = 75 + Math.min(15, Math.round(pts * 10)) + Math.min(5, (p.mvp_count || 0));
+  return Math.max(70, Math.min(95, base));
+}
+
+function getQuickScoutFact(p) {
+  if (!p) return "";
+  const m = Math.max(1, p.matches || 1);
+  const g = p.goals || 0;
+  const a = p.assists || 0;
+  const pos = p.position || "ALA";
+
+  if (pos === "GK") return "🧤 Надежен на ленточке, страхует выходы";
+  if (g / m >= 0.8) return "🔥 Киллер штрафной (" + (g / m).toFixed(1) + " гола за игру)";
+  if (a > g) return "🎯 Главный плеймейкер (больше ассистов, чем голов)";
+  if (p.yellow_cards >= 3) return "⚡ Жесткий боец, идет в подкаты до конца";
+  return "⭐ Универсал, отрабатывает по всей бровке";
+}
+
+function initLineup() {
+  try {
+    const saved = localStorage.getItem("futsal_lineup_5x5");
+    if (saved) {
+      currentLineup = JSON.parse(saved);
+      if (!Array.isArray(currentLineup) || currentLineup.length !== 5) {
+        currentLineup = [null, null, null, null, null];
+      }
+    }
+    const savedForm = localStorage.getItem("futsal_lineup_formation");
+    if (savedForm && FORMATIONS[savedForm]) {
+      currentLineupFormationKey = savedForm;
+      const sel = document.getElementById("lineup-formation-select");
+      if (sel) sel.value = savedForm;
+    }
+  } catch (e) {
+    console.warn("Could not load saved lineup:", e);
+  }
+
+  renderLineupCourt();
+  loadBenchPlayers();
+  updateSquadAnalytics();
+}
+
+function changeLineupFormation(key) {
+  if (!FORMATIONS[key]) return;
+  currentLineupFormationKey = key;
+  localStorage.setItem("futsal_lineup_formation", key);
+  renderLineupCourt();
+  updateSquadAnalytics();
+}
+
+function renderLineupCourt() {
+  const layer = document.getElementById("court-players-layer");
+  if (!layer) return;
+
+  const formation = FORMATIONS[currentLineupFormationKey] || FORMATIONS["1-2-1"];
+  layer.innerHTML = "";
+
+  formation.slots.forEach(slot => {
+    const player = currentLineup[slot.id];
+    const isSelected = selectedLineupSlot === slot.id;
+    const isTopHalf = slot.y < 35;
+    const tooltipPosition = isTopHalf ? "top-full mt-3" : "bottom-full mb-3";
+
+    const slotEl = document.createElement("div");
+    slotEl.className = "absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center select-none z-20";
+    slotEl.style.left = slot.x + "%";
+    slotEl.style.top = slot.y + "%";
+
+    if (player) {
+      const ovr = calculatePlayerOVR(player);
+      const avSrc = player.avatar || DEFAULT_AVATAR;
+      const shortName = formatShortName(player.name);
+
+      slotEl.innerHTML = `
+        <div class="relative group cursor-pointer flex flex-col items-center">
+          <!-- Аватар игрока на паркете -->
+          <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl relative shadow-2xl border-2 ${isSelected ? 'border-emerald-400 ring-4 ring-emerald-400/50 scale-105' : 'border-amber-400 hover:border-amber-300'} overflow-hidden transition-all bg-slate-900 group-hover:scale-105">
+            <img src="${avSrc}" class="w-full h-full object-cover">
+            <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-80 pointer-events-none"></div>
+            
+            <!-- Бейдж позиции и рейтинга OVR внизу жетона -->
+            <div class="absolute bottom-0 inset-x-0 bg-slate-950/90 text-amber-400 text-[10px] sm:text-[11px] font-black text-center py-0.5 border-t border-amber-400/30">
+              ${player.position || slot.pos} · ${ovr}
+            </div>
+
+            <!-- Кнопка удаления с поля при наведении -->
+            <button onclick="event.stopPropagation(); removePlayerFromSlot(${slot.id})" class="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-600/90 hover:bg-red-500 text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow" title="Убрать с поля">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+
+          <!-- Имя игрока под жетоном -->
+          <div class="mt-1 px-2 py-0.5 rounded-md bg-slate-950/90 border border-slate-700/80 shadow text-center">
+            <span class="text-[10px] sm:text-[11px] font-black text-white truncate max-w-[85px] block">${shortName}</span>
+          </div>
+
+          <!-- ВСПЛЫВАЮЩЕЕ ОКНО СО СТАТИСТИКОЙ ПРИ НАВЕДЕНИИ (HOVER POPUP) -->
+          <div class="absolute ${tooltipPosition} left-1/2 -translate-x-1/2 w-64 bg-slate-950/95 border-2 border-amber-400/90 rounded-2xl p-3.5 shadow-2xl backdrop-blur-md z-50 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-200 transform scale-95 group-hover:scale-100">
+            <!-- Шапка карточки -->
+            <div class="flex items-center gap-2.5 pb-2 border-b border-slate-800">
+              <img src="${avSrc}" class="w-10 h-12 rounded-xl object-cover border border-amber-400/40 bg-slate-900 shadow shrink-0">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">${player.position || slot.pos}</span>
+                  <span class="text-[10px] font-black text-amber-400">${ovr} OVR</span>
+                </div>
+                <h5 class="text-xs font-black text-white truncate mt-0.5">${player.name}</h5>
+                <p class="text-[10px] text-slate-400 truncate">${player.team || "Без команды"}</p>
+              </div>
+            </div>
+
+            <!-- Сетка статистики -->
+            <div class="grid grid-cols-2 gap-1.5 my-2 text-[11px]">
+              <div class="bg-slate-900/80 px-2 py-1 rounded-lg border border-slate-800/80">
+                <span class="text-slate-400 text-[9px] block uppercase font-bold">Матчи:</span>
+                <span class="font-black text-white">${player.matches || 0}</span>
+              </div>
+              <div class="bg-slate-900/80 px-2 py-1 rounded-lg border border-slate-800/80">
+                <span class="text-slate-400 text-[9px] block uppercase font-bold">Голы:</span>
+                <span class="font-black text-amber-400">${player.goals || 0}</span>
+              </div>
+              <div class="bg-slate-900/80 px-2 py-1 rounded-lg border border-slate-800/80">
+                <span class="text-slate-400 text-[9px] block uppercase font-bold">Пасы:</span>
+                <span class="font-black text-sky-400">${player.assists || 0}</span>
+              </div>
+              <div class="bg-slate-900/80 px-2 py-1 rounded-lg border border-slate-800/80">
+                <span class="text-slate-400 text-[9px] block uppercase font-bold">ЖК / КК:</span>
+                <span class="font-black text-yellow-400">${player.yellow_cards || 0} / ${player.red_cards || 0}</span>
+              </div>
+            </div>
+
+            <!-- Скаутская фишка -->
+            <div class="text-[10px] text-amber-300/90 italic bg-amber-500/10 px-2 py-1 rounded-md border border-amber-500/20">
+              ${getQuickScoutFact(player)}
+            </div>
+            <div class="text-[9px] text-slate-500 text-center mt-1.5">Кликните слот для замены игрока</div>
+          </div>
+        </div>
+      `;
+      slotEl.onclick = () => selectSlot(slot.id);
+    } else {
+      // Пустой слот для игрока
+      slotEl.innerHTML = `
+        <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl border-2 border-dashed ${isSelected ? 'border-emerald-300 bg-emerald-500/30 scale-105 ring-4 ring-emerald-400/50' : 'border-emerald-400/50 bg-slate-950/60 hover:bg-emerald-500/20 hover:border-emerald-300'} cursor-pointer flex flex-col items-center justify-center transition-all group shadow-lg">
+          <i class="fa-solid fa-plus text-emerald-400 text-sm group-hover:scale-125 transition-transform"></i>
+          <span class="text-[10px] font-black text-emerald-300 uppercase mt-0.5 tracking-wider">${slot.pos}</span>
+        </div>
+        <div class="mt-1 px-2 py-0.5 rounded-md bg-slate-950/90 border border-slate-800 text-center">
+          <span class="text-[10px] font-bold text-slate-300">${slot.label.split(' ')[0]}</span>
+        </div>
+      `;
+      slotEl.onclick = () => selectSlot(slot.id);
+    }
+
+    layer.appendChild(slotEl);
+  });
+}
+
+function selectSlot(slotId) {
+  if (selectedLineupSlot === slotId) {
+    selectedLineupSlot = null;
+  } else {
+    selectedLineupSlot = slotId;
+  }
+  renderLineupCourt();
+  highlightBenchForSlot(selectedLineupSlot);
+}
+
+function highlightBenchForSlot(slotId) {
+  const formation = FORMATIONS[currentLineupFormationKey];
+  if (slotId !== null && formation && formation.slots[slotId]) {
+    const pos = formation.slots[slotId].pos;
+    filterBench(pos);
+  }
+}
+
+async function loadBenchPlayers() {
+  const container = document.getElementById("bench-players-list");
+  const countEl = document.getElementById("bench-count");
+  if (!container) return;
+
+  container.innerHTML = '<div class="text-center py-6 text-slate-400 text-xs"><i class="fa-solid fa-spinner fa-spin mr-1 text-amber-400"></i> Загрузка скамейки...</div>';
+
+  const favs = await fetchWithFallback(API_BASE + "/favorites");
+  cachedBenchFavorites = favs || [];
+
+  if (countEl) countEl.innerText = cachedBenchFavorites.length + " игроков";
+
+  renderBenchCards();
+}
+
+function filterBench(pos) {
+  currentBenchFilter = pos;
+  document.querySelectorAll(".bench-filter-btn").forEach(btn => {
+    if (btn.getAttribute("data-pos") === pos) {
+      btn.className = "bench-filter-btn px-2.5 py-1 rounded-lg bg-amber-500 text-slate-950 font-black shadow";
+    } else {
+      btn.className = "bench-filter-btn px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 font-bold";
+    }
+  });
+  renderBenchCards();
+}
+
+function renderBenchCards() {
+  const container = document.getElementById("bench-players-list");
+  if (!container) return;
+
+  let list = cachedBenchFavorites;
+  if (currentBenchFilter && currentBenchFilter !== "ALL") {
+    list = list.filter(p => (p.position || "ALA").toUpperCase() === currentBenchFilter.toUpperCase());
+  }
+
+  if (list.length === 0) {
+    container.innerHTML = '<div class="text-center py-8 text-slate-500 text-xs"><i class="fa-solid fa-star text-slate-700 text-2xl mb-2"></i><div>Нет подходящих игроков в избранном.</div><p class="text-[11px] text-slate-600 mt-1">Добавьте игроков через поиск по лигам!</p></div>';
+    return;
+  }
+
+  container.innerHTML = "";
+  list.forEach(p => {
+    const isAlreadyOnField = currentLineup.some(lp => lp && String(lp.id || lp.name) === String(p.id || p.name));
+    const avSrc = p.avatar || DEFAULT_AVATAR;
+    const ovr = calculatePlayerOVR(p);
+
+    const card = document.createElement("div");
+    card.className = "bg-slate-900/90 border " + (isAlreadyOnField ? "border-emerald-500/40 opacity-70" : "border-slate-800 hover:border-amber-500/50") + " p-2.5 rounded-xl flex items-center justify-between gap-3 text-xs transition shadow";
+
+    card.innerHTML = `
+      <div class="flex items-center gap-2.5 min-w-0 flex-1">
+        <img src="${avSrc}" class="w-9 h-11 rounded-lg object-cover border border-amber-400/30 bg-slate-950 shrink-0">
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-1.5">
+            <span class="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">${p.position || 'ALA'}</span>
+            <span class="text-[10px] font-black text-amber-400">${ovr} OVR</span>
+            ${isAlreadyOnField ? '<span class="text-[9px] font-bold text-emerald-400">На поле</span>' : ''}
+          </div>
+          <h4 class="font-black text-white truncate text-xs mt-0.5">${p.name}</h4>
+          <p class="text-[10px] text-slate-400">${p.matches} игр · <b class="text-amber-400">${p.goals} г</b> · <b class="text-sky-400">${p.assists} п</b></p>
+        </div>
+      </div>
+      <button onclick="handleBenchPlayerClick(${p.id})" class="shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold transition ${isAlreadyOnField ? 'bg-slate-800 text-slate-400 hover:bg-slate-700' : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black shadow'}">
+        ${isAlreadyOnField ? 'Заменить' : 'В состав'}
+      </button>
+    `;
+
+    container.appendChild(card);
+  });
+}
+
+function handleBenchPlayerClick(playerId) {
+  const player = cachedBenchFavorites.find(p => p.id === playerId);
+  if (!player) return;
+
+  // Если выбран конкретный слот на паркете
+  if (selectedLineupSlot !== null) {
+    assignPlayerToSlot(player, selectedLineupSlot);
+    selectedLineupSlot = null;
+    return;
+  }
+
+  // Иначе ищем первый пустой слот, соответствующий позиции игрока
+  const formation = FORMATIONS[currentLineupFormationKey];
+  let targetSlot = null;
+
+  for (let i = 0; i < formation.slots.length; i++) {
+    if (currentLineup[i] === null && formation.slots[i].pos === (player.position || 'ALA')) {
+      targetSlot = i;
+      break;
+    }
+  }
+
+  // Если точного по позиции нет, берем любой пустой
+  if (targetSlot === null) {
+    for (let i = 0; i < formation.slots.length; i++) {
+      if (currentLineup[i] === null) {
+        targetSlot = i;
+        break;
+      }
+    }
+  }
+
+  if (targetSlot !== null) {
+    assignPlayerToSlot(player, targetSlot);
+  } else {
+    // Если все 5 слотов заняты, заменяем 1-го полевого
+    assignPlayerToSlot(player, 4);
+  }
+}
+
+function assignPlayerToSlot(player, slotId) {
+  currentLineup[slotId] = player;
+  saveLineupToStorage();
+  renderLineupCourt();
+  renderBenchCards();
+  updateSquadAnalytics();
+  confetti({ particleCount: 35, spread: 50, origin: { y: 0.7 } });
+}
+
+function removePlayerFromSlot(slotId) {
+  currentLineup[slotId] = null;
+  saveLineupToStorage();
+  renderLineupCourt();
+  renderBenchCards();
+  updateSquadAnalytics();
+}
+
+function clearLineupCourt() {
+  if (!confirm("Очистить все позиции на паркете?")) return;
+  currentLineup = [null, null, null, null, null];
+  saveLineupToStorage();
+  renderLineupCourt();
+  renderBenchCards();
+  updateSquadAnalytics();
+}
+
+function saveLineupToStorage() {
+  try {
+    localStorage.setItem("futsal_lineup_5x5", JSON.stringify(currentLineup));
+  } catch (e) {
+    console.warn("Storage error:", e);
+  }
+}
+
+function updateSquadAnalytics() {
+  const activePlayers = currentLineup.filter(Boolean);
+  const avgOvrEl = document.getElementById("lineup-avg-ovr");
+  const totalGoalsEl = document.getElementById("lineup-total-goals");
+  const totalMatchesEl = document.getElementById("lineup-total-matches");
+  const balanceEl = document.getElementById("lineup-squad-balance");
+  const verdictEl = document.getElementById("lineup-coach-verdict");
+
+  if (!avgOvrEl) return;
+
+  if (activePlayers.length === 0) {
+    avgOvrEl.innerText = "--";
+    totalGoalsEl.innerText = "0";
+    totalMatchesEl.innerText = "0";
+    balanceEl.innerText = "Пустой состав";
+    balanceEl.className = "text-[10px] font-black uppercase px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700";
+    verdictEl.innerText = "Заполните позиции на паркете игроками из избранного, чтобы получить тактический разбор.";
+    return;
+  }
+
+  let totalGoals = 0;
+  let totalMatches = 0;
+  let totalOvr = 0;
+
+  activePlayers.forEach(p => {
+    totalGoals += (p.goals || 0);
+    totalMatches += (p.matches || 0);
+    totalOvr += calculatePlayerOVR(p);
+  });
+
+  const avgOvr = Math.round(totalOvr / activePlayers.length);
+  avgOvrEl.innerText = avgOvr;
+  totalGoalsEl.innerText = totalGoals;
+  totalMatchesEl.innerText = totalMatches;
+
+  const formation = FORMATIONS[currentLineupFormationKey];
+  balanceEl.innerText = formation ? formation.balance : "Сбалансированная";
+  balanceEl.className = "text-[10px] font-black uppercase px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+
+  if (activePlayers.length === 5) {
+    verdictEl.innerHTML = "🏆 <b>Стартовая пятёрка укомплектована!</b> Суммарно на паркете <b class='text-amber-400'>" + totalGoals + " голов</b> в " + totalMatches + " матчах. " + (formation ? formation.tacticTip : "");
+  } else {
+    verdictEl.innerText = "В составе " + activePlayers.length + " из 5 игроков. Добавьте ещё " + (5 - activePlayers.length) + ", чтобы завершить стартовую пятёрку.";
+  }
+}
+
+function exportLineupCourt() {
+  const container = document.getElementById("futsal-court-container");
+  if (!container) return;
+
+  html2canvas(container, {
+    scale: 2,
+    useCORS: true,
+    backgroundColor: null
+  }).then(canvas => {
+    const link = document.createElement("a");
+    link.download = "futsal-lineup-5x5-" + currentLineupFormationKey + ".png";
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+    confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
+  }).catch(err => {
+    alert("Ошибка экспорта изображения: " + err);
   });
 }

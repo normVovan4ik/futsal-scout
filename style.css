@@ -71,3 +71,12 @@
 .h2h-bar-p2 {
   background: linear-gradient(90deg, #06b6d4, #22d3ee);
 }
+
+/* Паркет и жетоны игроков 5х5 */
+#futsal-court-container {
+  box-shadow: 0 15px 45px -10px rgba(4, 120, 87, 0.5), inset 0 0 50px rgba(0, 0, 0, 0.4);
+}
+
+.lineup-hover-card {
+  box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.9), 0 0 25px rgba(245, 158, 11, 0.4);
+}

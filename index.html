@@ -46,6 +46,9 @@
         <button onclick="switchTab('teams-search')" id="tab-btn-teams-search" class="tab-btn px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-slate-400 hover:text-white">
           <i class="fa-solid fa-shield-halved text-sky-400"></i> Команды (3 лиги)
         </button>
+        <button onclick="switchTab('lineup')" id="tab-btn-lineup" class="tab-btn px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-slate-400 hover:text-white">
+          <i class="fa-solid fa-people-group text-emerald-400"></i> Пятёрка 5х5
+        </button>
         <button onclick="switchTab('head-to-head')" id="tab-btn-head-to-head" class="tab-btn px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-slate-400 hover:text-white">
           <i class="fa-solid fa-bolt"></i> Дуэль (H2H)
         </button>
@@ -460,6 +463,172 @@
             <!-- Динамические карточки команд -->
           </div>
         </div>
+      </div>
+    </div>
+
+    
+    <!-- ========================================== -->
+    <!-- ВКЛАДКА: СТАРТОВАЯ ПЯТЁРКА (LINEUP 5X5)   -->
+    <!-- ========================================== -->
+    <div id="tab-lineup" class="tab-content hidden">
+      <div class="bg-slate-900/80 border border-slate-800 p-6 rounded-3xl mb-8 shadow-2xl">
+        
+        <!-- Верхняя панель: Заголовок, выбор тактики, кнопки -->
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6 border-b border-slate-800 pb-5">
+          <div>
+            <h2 class="text-xl font-black text-white flex items-center gap-2.5">
+              <i class="fa-solid fa-people-group text-emerald-400"></i> Стартовая пятёрка (Lineup 5x5)
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">
+              Расставьте игроков на паркете из вашей базы избранного. При наведении на игрока открывается его скаут-статистика!
+            </p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-3">
+            <!-- Селектор схемы -->
+            <div class="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
+              <span class="text-xs text-slate-400 font-bold uppercase"><i class="fa-solid fa-diagram-project text-emerald-400 mr-1"></i> Схема:</span>
+              <select id="lineup-formation-select" onchange="changeLineupFormation(this.value)" class="bg-transparent text-emerald-400 font-black text-xs focus:outline-none cursor-pointer">
+                <option value="1-2-1" class="bg-slate-900 text-white">1-2-1 «Ромб» (Классика футзала)</option>
+                <option value="2-2" class="bg-slate-900 text-white">2-2 «Квадрат» (Контратаки)</option>
+                <option value="3-1" class="bg-slate-900 text-white">3-1 «Пирамида» (Опора на столпа)</option>
+                <option value="5-0" class="bg-slate-900 text-white">5 полевых (Power Play / Гонила)</option>
+              </select>
+            </div>
+
+            <!-- Кнопка экспорта в PNG -->
+            <button onclick="exportLineupCourt()" class="px-3.5 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 text-xs font-black rounded-xl transition shadow active:scale-95 flex items-center gap-1.5">
+              <i class="fa-solid fa-camera"></i> Скачать расстановку (PNG)
+            </button>
+
+            <!-- Кнопка очистки -->
+            <button onclick="clearLineupCourt()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl transition border border-slate-700 hover:text-white" title="Очистить паркет">
+              <i class="fa-solid fa-rotate-left"></i> Сброс
+            </button>
+          </div>
+        </div>
+
+        <!-- Основная сетка: Паркет (слева) + Аналитика и скамейка (справа) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          
+          <!-- КОЛОНКА 1: Футзальная площадка (Паркет 5х5) -->
+          <div class="lg:col-span-7 flex flex-col items-center">
+            
+            <!-- Контейнер паркета -->
+            <div id="futsal-court-container" class="w-full relative rounded-3xl overflow-hidden border-2 border-emerald-500/40 shadow-2xl select-none" style="aspect-ratio: 4/5; min-height: 540px; background: linear-gradient(180deg, #064e3b 0%, #065f46 40%, #047857 70%, #064e3b 100%);">
+              
+              <!-- Текстура паркетных полос -->
+              <div class="absolute inset-0 opacity-15 pointer-events-none" style="background-image: repeating-linear-gradient(90deg, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 40px, transparent 40px, transparent 80px);"></div>
+              
+              <!-- Линии разметки площадки (белые четкие линии) -->
+              <!-- Внешняя граница -->
+              <div class="absolute inset-4 border-2 border-white/70 pointer-events-none rounded-lg"></div>
+
+              <!-- Центральная линия -->
+              <div class="absolute left-4 right-4 top-1/2 -translate-y-1/2 border-b-2 border-white/70 pointer-events-none"></div>
+
+              <!-- Центральный круг -->
+              <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 rounded-full border-2 border-white/70 pointer-events-none"></div>
+              <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white/90 pointer-events-none"></div>
+
+              <!-- Вратарская дуга (6 метров) - Внизу (Свои ворота) -->
+              <div class="absolute left-1/2 bottom-4 -translate-x-1/2 w-64 h-32 border-t-2 border-l-2 border-r-2 border-white/70 rounded-t-full pointer-events-none"></div>
+              <!-- 6м отметка пенальти внизу -->
+              <div class="absolute left-1/2 bottom-28 -translate-x-1/2 w-2 h-2 rounded-full bg-white/90 pointer-events-none"></div>
+              <!-- 10м отметка дабл-пенальти внизу -->
+              <div class="absolute left-1/2 bottom-40 -translate-x-1/2 w-3 h-1 bg-white/90 pointer-events-none"></div>
+
+              <!-- Вратарская дуга (6 метров) - Вверху (Чужие ворота) -->
+              <div class="absolute left-1/2 top-4 -translate-x-1/2 w-64 h-32 border-b-2 border-l-2 border-r-2 border-white/70 rounded-b-full pointer-events-none"></div>
+              <!-- 6м отметка вверху -->
+              <div class="absolute left-1/2 top-28 -translate-x-1/2 w-2 h-2 rounded-full bg-white/90 pointer-events-none"></div>
+
+              <!-- Угловые дуги -->
+              <div class="absolute left-4 top-4 w-6 h-6 border-b border-r border-white/70 rounded-br-full pointer-events-none"></div>
+              <div class="absolute right-4 top-4 w-6 h-6 border-b border-l border-white/70 rounded-bl-full pointer-events-none"></div>
+              <div class="absolute left-4 bottom-4 w-6 h-6 border-t border-r border-white/70 rounded-tr-full pointer-events-none"></div>
+              <div class="absolute right-4 bottom-4 w-6 h-6 border-t border-l border-white/70 rounded-tl-full pointer-events-none"></div>
+
+              <!-- Ворота сетка внизу -->
+              <div class="absolute left-1/2 bottom-0 -translate-x-1/2 w-36 h-3 bg-white/20 border-t-2 border-x-2 border-white/80 pointer-events-none"></div>
+              <!-- Ворота сетка вверху -->
+              <div class="absolute left-1/2 top-0 -translate-x-1/2 w-36 h-3 bg-white/20 border-b-2 border-x-2 border-white/80 pointer-events-none"></div>
+
+              <!-- Контейнер для 5 интерактивных слотов игроков -->
+              <div id="court-players-layer" class="absolute inset-0">
+                <!-- Сюда динамически рендерятся 5 слотов по координатам схемы -->
+              </div>
+
+            </div>
+
+            <div class="mt-3 text-[11px] text-slate-400 flex items-center justify-between w-full px-2">
+              <span><i class="fa-solid fa-arrows-up-down text-emerald-400 mr-1"></i> Атака направлена вверх</span>
+              <span><i class="fa-solid fa-hand-pointer text-amber-400 mr-1"></i> Наведите на игрока для карточки статы</span>
+            </div>
+          </div>
+
+          <!-- КОЛОНКА 2: Аналитика пятёрки + Скамейка избранных игроков -->
+          <div class="lg:col-span-5 flex flex-col gap-5">
+            
+            <!-- Сводная аналитика состава -->
+            <div class="bg-slate-950 p-5 rounded-2xl border border-slate-800 shadow">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-xs font-black text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <i class="fa-solid fa-chart-column"></i> Мощь стартовой пятёрки
+                </h3>
+                <span id="lineup-squad-balance" class="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  Сбалансированная
+                </span>
+              </div>
+
+              <div class="grid grid-cols-3 gap-2 text-center mb-3">
+                <div class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
+                  <div class="text-[10px] uppercase font-bold text-slate-400">Командный OVR</div>
+                  <div id="lineup-avg-ovr" class="text-xl font-black text-amber-400">--</div>
+                </div>
+                <div class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
+                  <div class="text-[10px] uppercase font-bold text-slate-400">Всего голов</div>
+                  <div id="lineup-total-goals" class="text-xl font-black text-white">0</div>
+                </div>
+                <div class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
+                  <div class="text-[10px] uppercase font-bold text-slate-400">Опыт (Матчи)</div>
+                  <div id="lineup-total-matches" class="text-xl font-black text-sky-400">0</div>
+                </div>
+              </div>
+
+              <div id="lineup-coach-verdict" class="text-xs text-slate-300 leading-relaxed italic bg-slate-900/50 p-3 rounded-xl border border-slate-800/80">
+                Заполните позиции на паркете игроками из избранного, чтобы получить тактический разбор.
+              </div>
+            </div>
+
+            <!-- Скамейка игроков (из Избранного SQLite) -->
+            <div class="bg-slate-950 p-5 rounded-2xl border border-slate-800 shadow flex flex-col">
+              <div class="flex items-center justify-between mb-3">
+                <div class="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <i class="fa-solid fa-chair text-amber-400"></i> Скамейка (Избранное)
+                </div>
+                <span id="bench-count" class="text-xs text-slate-400">0 игроков</span>
+              </div>
+
+              <!-- Фильтр позиций на скамейке -->
+              <div class="flex flex-wrap gap-1 mb-3 text-[11px] font-bold" id="bench-filter-buttons">
+                <button onclick="filterBench('ALL')" class="bench-filter-btn px-2.5 py-1 rounded-lg bg-amber-500 text-slate-950" data-pos="ALL">Все</button>
+                <button onclick="filterBench('GK')" class="bench-filter-btn px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400" data-pos="GK">GK</button>
+                <button onclick="filterBench('FIX')" class="bench-filter-btn px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400" data-pos="FIX">FIX</button>
+                <button onclick="filterBench('ALA')" class="bench-filter-btn px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400" data-pos="ALA">ALA</button>
+                <button onclick="filterBench('PIV')" class="bench-filter-btn px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400" data-pos="PIV">PIV</button>
+              </div>
+
+              <!-- Список игроков скамейки -->
+              <div id="bench-players-list" class="space-y-2 max-h-[380px] overflow-y-auto pr-1">
+                <!-- Динамические игроки из favorites -->
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
       </div>
     </div>
 
