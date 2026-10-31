@@ -39,18 +39,88 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS player_avatars (
+                player_name TEXT PRIMARY KEY,
+                avatar TEXT NOT NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
     conn.close()
+
+
+def save_avatar(player_name: str, avatar_data: str) -> bool:
+    """Сохраняет аватар игрока в постоянную таблицу player_avatars и обновляет в избранном."""
+    name_clean = player_name.strip()
+    if not name_clean or not avatar_data:
+        return False
+
+    canon_key = " ".join(name_clean.lower().split()[:2])
+    conn = get_db()
+    with conn:
+        conn.execute("""
+            INSERT INTO player_avatars (player_name, avatar, updated_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(player_name) DO UPDATE SET
+                avatar = excluded.avatar,
+                updated_at = CURRENT_TIMESTAMP
+        """, (canon_key, avatar_data))
+
+        # Обновляем также в избранном если игрок там есть
+        conn.execute("""
+            UPDATE favorites SET avatar = ?
+            WHERE LOWER(TRIM(name)) LIKE ?
+        """, (avatar_data, f"%{canon_key}%"))
+    conn.close()
+    return True
+
+
+def get_avatar(player_name: str) -> Optional[str]:
+    """Возвращает сохраненный аватар игрока по имени."""
+    name_clean = player_name.strip()
+    if not name_clean:
+        return None
+
+    canon_key = " ".join(name_clean.lower().split()[:2])
+    conn = get_db()
+    cur = conn.execute("SELECT avatar FROM player_avatars WHERE player_name = ?", (canon_key,))
+    row = cur.fetchone()
+    if row and row["avatar"]:
+        conn.close()
+        return row["avatar"]
+
+    # Fallback на favorites
+    cur2 = conn.execute("SELECT avatar FROM favorites WHERE LOWER(TRIM(name)) LIKE ? AND avatar != '' LIMIT 1", (f"%{canon_key}%",))
+    row2 = cur2.fetchone()
+    conn.close()
+    return row2["avatar"] if row2 else None
 
 
 def save_favorite(player_data: dict) -> int:
     conn = get_db()
     name = player_data.get("name", "").strip()
     sources_data = json.dumps(player_data.get("sources_data", {}), ensure_ascii=False)
+    canon_key = " ".join(name.lower().split()[:2])
+
+    # Если передан непустой аватар, сохраняем его в постоянную таблицу
+    incoming_avatar = player_data.get("avatar", "").strip()
+    if incoming_avatar and not incoming_avatar.startswith("data:image/svg"):
+        save_avatar(name, incoming_avatar)
 
     with conn:
-        # Проверяем, есть ли уже такой игрок
-        cur = conn.execute("SELECT id FROM favorites WHERE name = ?", (name,))
+        cur = conn.execute("SELECT id, avatar FROM favorites WHERE name = ?", (name,))
         row = cur.fetchone()
+
+        # Определяем итоговый аватар: не затираем существующий пустым значением
+        final_avatar = incoming_avatar
+        if not final_avatar or final_avatar.startswith("data:image/svg"):
+            if row and row["avatar"]:
+                final_avatar = row["avatar"]
+            else:
+                saved = get_avatar(name)
+                if saved:
+                    final_avatar = saved
+
         if row:
             player_id = row["id"]
             conn.execute("""
@@ -72,7 +142,7 @@ def save_favorite(player_data: dict) -> int:
                 "id": player_id,
                 "position": player_data.get("position", "PIV"),
                 "team": player_data.get("team", ""),
-                "avatar": player_data.get("avatar", ""),
+                "avatar": final_avatar,
                 "matches": player_data.get("matches", 0),
                 "team_matches": player_data.get("team_matches", player_data.get("matches", 0)),
                 "goals": player_data.get("goals", 0),
@@ -99,7 +169,7 @@ def save_favorite(player_data: dict) -> int:
                 "name": name,
                 "position": player_data.get("position", "PIV"),
                 "team": player_data.get("team", ""),
-                "avatar": player_data.get("avatar", ""),
+                "avatar": final_avatar,
                 "matches": player_data.get("matches", 0),
                 "team_matches": player_data.get("team_matches", player_data.get("matches", 0)),
                 "goals": player_data.get("goals", 0),
@@ -124,6 +194,10 @@ def get_all_favorites() -> List[dict]:
             d["sources_data"] = json.loads(d["sources_data"] or "{}")
         except Exception:
             d["sources_data"] = {}
+        if not d.get("avatar") or d["avatar"].startswith("data:image/svg"):
+            saved_av = get_avatar(d.get("name", ""))
+            if saved_av:
+                d["avatar"] = saved_av
         result.append(d)
     conn.close()
     return result

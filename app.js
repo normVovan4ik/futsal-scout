@@ -6,6 +6,8 @@
 
 const API_BASE = "http://localhost:8000/api";
 
+const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 140 180' fill='%23d4af37'><rect width='140' height='180' fill='%23111827'/><circle cx='70' cy='55' r='28' fill='%23f59e0b'/><path d='M25 150 C25 105 50 95 70 95 C90 95 115 105 115 150 Z' fill='%23f59e0b'/><circle cx='70' cy='140' r='12' fill='%23111827'/><path d='M70 130 L70 150 M60 140 L80 140' stroke='%23f59e0b' stroke-width='2'/></svg>";
+
 let allRealPlayers = [];
 let currentSource = "liga5x5";
 let currentSeason = null;
@@ -16,6 +18,71 @@ let activePlayerSources = {};
 let activePlayerTeams = {};
 let activeTeamKey = "all";
 let activeSourceKey = "all";
+
+function saveCardStateToStorage() {
+  try {
+    const name = document.getElementById("input-name")?.value || "";
+    if (!name || name === "Иван Петров") return;
+    const state = {
+      name: name,
+      team: document.getElementById("input-team")?.value || "",
+      pos: document.getElementById("input-pos")?.value || "PIV",
+      avatar: document.getElementById("input-avatar")?.value || "",
+      matches: document.getElementById("input-matches")?.value || 0,
+      teamMatches: document.getElementById("input-team-matches")?.value || 0,
+      goals: document.getElementById("input-goals")?.value || 0,
+      assists: document.getElementById("input-assists")?.value || 0,
+      yc: document.getElementById("input-yc")?.value || 0,
+      rc: document.getElementById("input-rc")?.value || 0,
+      mvp: document.getElementById("input-mvp")?.value || 0,
+      currentActivePlayer: currentActivePlayer || null,
+      activePlayerSources: activePlayerSources || {},
+      activePlayerTeams: activePlayerTeams || {}
+    };
+    localStorage.setItem("futsal_card_state", JSON.stringify(state));
+  } catch (e) {
+    console.warn("Could not save card state:", e);
+  }
+}
+
+function restoreCardStateFromStorage() {
+  try {
+    const raw = localStorage.getItem("futsal_card_state");
+    if (!raw) return false;
+    const state = JSON.parse(raw);
+    if (!state || !state.name || state.name === "Иван Петров") return false;
+
+    if (state.name) document.getElementById("input-name").value = state.name;
+    if (state.team) document.getElementById("input-team").value = state.team;
+    if (state.pos) document.getElementById("input-pos").value = state.pos;
+    if (state.avatar) {
+      document.getElementById("input-avatar").value = state.avatar;
+      const avImg = document.getElementById("card-avatar");
+      if (avImg) avImg.src = state.avatar;
+    }
+    if (state.matches !== undefined) document.getElementById("input-matches").value = state.matches;
+    if (state.teamMatches !== undefined) document.getElementById("input-team-matches").value = state.teamMatches;
+    if (state.goals !== undefined) document.getElementById("input-goals").value = state.goals;
+    if (state.assists !== undefined) document.getElementById("input-assists").value = state.assists;
+    if (state.yc !== undefined) document.getElementById("input-yc").value = state.yc;
+    if (state.rc !== undefined) document.getElementById("input-rc").value = state.rc;
+    if (state.mvp !== undefined) document.getElementById("input-mvp").value = state.mvp;
+
+    currentActivePlayer = state.currentActivePlayer;
+    activePlayerSources = state.activePlayerSources || {};
+    activePlayerTeams = state.activePlayerTeams || {};
+
+    if (currentActivePlayer) {
+      renderTeamFilterButtons(currentActivePlayer);
+      renderSourceFilterButtons(currentActivePlayer);
+    }
+    return true;
+  } catch (e) {
+    console.warn("Could not restore card state:", e);
+    return false;
+  }
+}
+
 
 async function fetchWithFallback(url) {
   try {
@@ -247,10 +314,17 @@ function loadMergedPlayerToCard(player) {
   const posSelect = document.getElementById("input-pos");
   if (posSelect) posSelect.value = smartPos;
 
-  // Если у игрока уже есть кастомный аватар в базе, подставляем его
-  if (player.avatar) {
-    document.getElementById("input-avatar").value = player.avatar;
-    document.getElementById("card-avatar").src = player.avatar;
+    // Если у игрока уже есть кастомный аватар в базе или локальном хранилище, подставляем его
+  const savedLocalAvatar = localStorage.getItem("futsal_avatar_" + (player.name || "").toLowerCase().trim());
+  const effectiveAvatar = player.avatar || savedLocalAvatar || "";
+
+  if (effectiveAvatar && !effectiveAvatar.startsWith("data:image/svg")) {
+    document.getElementById("input-avatar").value = effectiveAvatar;
+    document.getElementById("card-avatar").src = effectiveAvatar;
+    player.avatar = effectiveAvatar;
+  } else {
+    document.getElementById("input-avatar").value = DEFAULT_AVATAR;
+    document.getElementById("card-avatar").src = DEFAULT_AVATAR;
   }
 
   applyStatsToInputs({
@@ -561,12 +635,16 @@ async function loadFavoritesList() {
     const card = document.createElement("div");
     card.className = "bg-slate-950 border border-slate-800 hover:border-amber-500/40 rounded-2xl p-4 transition flex flex-col justify-between shadow";
 
+    const avSrc = fav.avatar || DEFAULT_AVATAR;
     card.innerHTML = '<div>' +
       '<div class="flex items-start justify-between gap-2 mb-2">' +
-        '<div>' +
-          '<span class="text-[10px] font-black uppercase tracking-wider text-amber-400 px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">' + fav.position + '</span>' +
-          '<h4 class="text-base font-black text-white mt-1">' + fav.name + '</h4>' +
-          '<p class="text-xs text-slate-400">' + (fav.team || "Без команды") + '</p>' +
+        '<div class="flex items-center gap-3">' +
+          '<img src="' + avSrc + '" class="w-12 h-14 rounded-xl object-cover border border-amber-400/30 bg-slate-900 shadow shrink-0">' +
+          '<div>' +
+            '<span class="text-[10px] font-black uppercase tracking-wider text-amber-400 px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">' + fav.position + '</span>' +
+            '<h4 class="text-base font-black text-white mt-1">' + fav.name + '</h4>' +
+            '<p class="text-xs text-slate-400">' + (fav.team || "Без команды") + '</p>' +
+          '</div>' +
         '</div>' +
         '<button onclick="deleteFavoriteById(' + fav.id + ')" class="text-slate-600 hover:text-red-400 transition text-sm p-1" title="Удалить"><i class="fa-solid fa-trash"></i></button>' +
       '</div>' +
@@ -597,6 +675,7 @@ async function restoreFavoriteToCard(favId) {
   const restoredPlayer = {
     name: fav.name,
     team: fav.team || "",
+    avatar: fav.avatar || localStorage.getItem("futsal_avatar_" + (fav.name || "").toLowerCase().trim()) || "",
     all_teams: activePlayerTeams,
     sources_data: activePlayerSources,
     total_matches: fav.matches,
@@ -802,6 +881,7 @@ let radarChart = null;
 document.addEventListener("DOMContentLoaded", async () => {
   initRadar();
   initTiltEffect();
+  const restored = restoreCardStateFromStorage();
   recalcCard();
   updateH2H();
 
@@ -1307,6 +1387,25 @@ function applyCustomAvatar(dataUrl) {
   if (avatarImg) avatarImg.src = dataUrl;
   if (avatarInput) avatarInput.value = dataUrl;
   if (currentActivePlayer) currentActivePlayer.avatar = dataUrl;
+
+  const pName = (document.getElementById("input-name")?.value || "").trim();
+  if (pName) {
+    const key = "futsal_avatar_" + pName.toLowerCase();
+    try {
+      localStorage.setItem(key, dataUrl);
+    } catch (e) {
+      console.warn("localStorage quota:", e);
+    }
+
+    // Сохраняем сразу в постоянную БД SQLite через API
+    fetch(API_BASE + "/avatar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: pName, avatar: dataUrl })
+    }).catch(err => console.warn("Avatar sync error:", err));
+  }
+
+  saveCardStateToStorage();
   confetti({ particleCount: 30, spread: 50, origin: { y: 0.8 } });
 }
 

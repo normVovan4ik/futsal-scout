@@ -691,6 +691,10 @@ def search_all_sources(query: str) -> list[dict]:
         g["total_pts"] += p.get("total_pts", 0)
 
     result = list(grouped.values())
+    for g in result:
+        saved_avatar = db.get_avatar(g["name"])
+        if saved_avatar:
+            g["avatar"] = saved_avatar
     result.sort(key=lambda x: (x["total_goals"] + x["total_assists"]), reverse=True)
     return result
 
@@ -1032,6 +1036,22 @@ def merge_accounts_endpoint(accounts: list[dict] = Body(...)):
 @app.get("/api/favorites")
 def get_favorites():
     return db.get_all_favorites()
+
+
+@app.post("/api/avatar")
+def save_avatar_endpoint(data: dict = Body(...)):
+    name = data.get("name", "").strip()
+    avatar = data.get("avatar", "").strip()
+    if not name or not avatar:
+        raise HTTPException(400, "Имя и аватар обязательны")
+    success = db.save_avatar(name, avatar)
+    return {"status": "ok", "saved": success}
+
+
+@app.get("/api/avatar")
+def get_avatar_endpoint(name: str = Query(...)):
+    av = db.get_avatar(name)
+    return {"name": name, "avatar": av}
 
 
 @app.post("/api/favorites")
