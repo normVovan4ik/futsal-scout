@@ -133,6 +133,12 @@ def parse_player_teams_detail(player_url: str) -> list[dict]:
         if time.time() - ts < _cache_ttl:
             return data
 
+    if "nagradion.ru" in player_url:
+        prof = parse_ffge_player_profile(player_url)
+        if prof and prof.get("teams"):
+            _cache[cache_key] = (prof["teams"], time.time())
+            return prof["teams"]
+
     soup = get_soup(player_url)
     if not soup:
         return []
@@ -285,8 +291,113 @@ def search_liga_source(source_key: str, query: str) -> list[dict]:
     return players
 
 
+def parse_ffge_player_profile(player_id_or_url) -> dict | None:
+    """Парсит официальный профиль игрока на ffge.nagradion.ru/player/{id}."""
+    if isinstance(player_id_or_url, int) or str(player_id_or_url).isdigit():
+        url = f"https://ffge.nagradion.ru/player/{player_id_or_url}"
+    else:
+        url = str(player_id_or_url)
+        m = re.search(r"/player/(\d+)", url)
+        if m:
+            url = f"https://ffge.nagradion.ru/player/{m.group(1)}"
+
+    soup = get_soup(url)
+    if not soup:
+        return None
+
+    html = str(soup)
+    m = re.search(r"renderComponent\([^,]+,\s*'PlayerStats',\s*({.*?})\);", html, re.DOTALL)
+    if not m:
+        return None
+
+    try:
+        data = json.loads(m.group(1))
+    except Exception:
+        return None
+
+    total_matches = 0
+    total_goals = 0
+    total_assists = 0
+    total_yc = 0
+    total_rc = 0
+    teams_map = {}
+
+    for sport in data.get("sports", []):
+        col_map = {}
+        for c in sport.get("columns", []):
+            label = c.get("label", "").strip().lower()
+            key = c.get("key")
+            if label in ["игр", "и"]: col_map["played"] = key
+            elif label == "м": col_map["protocol"] = key
+            elif label in ["г", "голы"]: col_map["goals"] = key
+            elif label in ["пас", "п"]: col_map["assists"] = key
+            elif label in ["жк", "ж"]: col_map["yc"] = key
+            elif label in ["кк", "к"]: col_map["rc"] = key
+
+        for row in sport.get("rows", []):
+            st = row.get("stats", {})
+            t_obj = row.get("team") or {}
+            team_name = t_obj.get("name", "").strip()
+            tourn_obj = row.get("tournament") or {}
+            tourn_name = tourn_obj.get("name", "").strip()
+
+            matches = 0
+            if "played" in col_map and col_map["played"] in st:
+                matches = int(st[col_map["played"]])
+            elif "protocol" in col_map and col_map["protocol"] in st:
+                matches = int(st[col_map["protocol"]])
+            elif "matches" in st:
+                matches = int(st["matches"])
+
+            goals = int(st[col_map["goals"]]) if "goals" in col_map and col_map["goals"] in st else 0
+            assists = int(st[col_map["assists"]]) if "assists" in col_map and col_map["assists"] in st else 0
+            yc = int(st[col_map["yc"]]) if "yc" in col_map and col_map["yc"] in st else 0
+            rc = int(st[col_map["rc"]]) if "rc" in col_map and col_map["rc"] in st else 0
+
+            if matches == 0 and (goals > 0 or assists > 0):
+                matches = max(1, goals)
+
+            total_matches += matches
+            total_goals += goals
+            total_assists += assists
+            total_yc += yc
+            total_rc += rc
+
+            if team_name:
+                if team_name not in teams_map:
+                    teams_map[team_name] = {
+                        "team_name": team_name,
+                        "matches": 0,
+                        "goals": 0,
+                        "assists": 0,
+                        "yellow_cards": 0,
+                        "red_cards": 0,
+                        "division": tourn_name
+                    }
+                t = teams_map[team_name]
+                t["matches"] += matches
+                t["goals"] += goals
+                t["assists"] += assists
+                t["yellow_cards"] += yc
+                t["red_cards"] += rc
+
+    pname = ""
+    if soup.title:
+        pname = soup.title.text.replace("- игрок", "").strip()
+
+    return {
+        "name": pname,
+        "matches": total_matches,
+        "goals": total_goals,
+        "assists": total_assists,
+        "yellow_cards": total_yc,
+        "red_cards": total_rc,
+        "teams": list(teams_map.values())
+    }
+
+
 def search_ffge_source(query: str) -> list[dict]:
-    """Ищет игрока по расширенному пулу турниров на ffge.nagradion.ru."""
+    """Ищет игрока по расширенному пулу турниров на ffge.nagradion.ru с динамическими колонками и профилями."""
     q_low = query.strip().lower()
     if not q_low:
         return []
@@ -310,57 +421,135 @@ def search_ffge_source(query: str) -> list[dict]:
         if not table:
             return []
 
-        found = []
+        headers = [th.text.strip().lower() for th in table.select("th")]
+        col = {}
+        for idx, h in enumerate(headers):
+            if any(w in h for w in ["игрок", "участник"]): col["name"] = idx
+            elif any(w in h for w in ["команда", "клуб"]): col["team"] = idx
+            elif any(w in h for w in ["игр", "игры", "матчи", "и"]): col["matches"] = idx
+            elif h in ["г", "голы"]: col["goals"] = idx
+            elif any(w in h for w in ["пас", "пасы", "п"]): col["assists"] = idx
+            elif "жк" in h: col["yc"] = idx
+            elif "кк" in h: col["rc"] = idx
+
+        rows_found = []
         for tr in table.select("tbody tr"):
             tds = [td.text.strip() for td in tr.select("td")]
-            if len(tds) < 10:
+            if len(tds) < 3:
                 continue
 
-            pname = tds[1]
+            name_idx = col.get("name", 1)
+            pname = tds[name_idx] if name_idx < len(tds) else ""
             if q_low in pname.lower():
-                a = tr.select_one("td:nth-of-type(2) a")
-                p_url = a['href'] if a else f"https://ffge.nagradion.ru/tournament{tid}"
+                a = tr.select_one("a[href*='/player/']")
+                p_url = a['href'] if a else ""
+                if p_url and not p_url.startswith("http"):
+                    p_url = f"https://ffge.nagradion.ru{p_url}"
                 m_id = re.search(r"/player/(\d+)", p_url)
                 pid = int(m_id.group(1)) if m_id else None
 
-                team = tds[2] if len(tds) > 2 else ""
-                m_cnt = parse_number(tds[3]) if len(tds) > 3 else 0
-                goals = parse_number(tds[8]) if len(tds) > 8 else 0
-                assists = parse_number(tds[12]) if len(tds) > 12 else 0
-                yc = parse_number(tds[14]) if len(tds) > 14 else 0
-                rc = parse_number(tds[16]) if len(tds) > 16 else 0
+                team_idx = col.get("team", 2)
+                team = tds[team_idx] if team_idx < len(tds) else ""
+                m_cnt = parse_number(tds[col["matches"]]) if "matches" in col and col["matches"] < len(tds) else 0
+                goals = parse_number(tds[col["goals"]]) if "goals" in col and col["goals"] < len(tds) else 0
+                assists = parse_number(tds[col["assists"]]) if "assists" in col and col["assists"] < len(tds) else 0
+                yc = parse_number(tds[col["yc"]]) if "yc" in col and col["yc"] < len(tds) else 0
+                rc = parse_number(tds[col["rc"]]) if "rc" in col and col["rc"] < len(tds) else 0
 
-                found.append({
-                    "source_id": "ffge",
-                    "source_name": "ФФГЭ (Наградион)",
+                if m_cnt == 0 and (goals > 0 or assists > 0):
+                    m_cnt = max(1, goals)
+
+                rows_found.append({
+                    "pid": pid,
                     "name": pname,
-                    "player_id": pid,
-                    "player_url": p_url,
+                    "url": p_url,
+                    "team": team,
+                    "tournament": tname,
                     "matches": m_cnt,
                     "goals": goals,
                     "assists": assists,
-                    "total_pts": goals + assists,
-                    "yellow_cards": yc,
-                    "red_cards": rc,
-                    "mvp_count": 0,
-                    "teams": [{
-                        "team_name": team,
-                        "matches": m_cnt,
-                        "goals": goals,
-                        "assists": assists,
-                        "yellow_cards": yc,
-                        "red_cards": rc,
-                        "division": tname
-                    }] if team else []
+                    "yc": yc,
+                    "rc": rc
                 })
-        return found
+        return rows_found
 
     with ThreadPoolExecutor(max_workers=10) as ex:
-        results = list(ex.map(check_tournament, tournaments))
+        all_t_rows = list(ex.map(check_tournament, tournaments))
 
-    flattened = [p for sub in results for p in sub]
-    _cache[cache_key] = (flattened, time.time())
-    return flattened
+    all_matches = [r for sub in all_t_rows for r in sub]
+
+    grouped_by_pid: dict[int, list] = {}
+    for r in all_matches:
+        pid = r["pid"]
+        if pid:
+            if pid not in grouped_by_pid:
+                grouped_by_pid[pid] = []
+            grouped_by_pid[pid].append(r)
+
+    results = []
+    for pid, rows in grouped_by_pid.items():
+        prof = parse_ffge_player_profile(pid)
+        pname = rows[0]["name"]
+        purl = rows[0]["url"]
+
+        if prof and (prof["matches"] > 0 or prof["goals"] > 0 or prof["teams"]):
+            results.append({
+                "source_id": "ffge",
+                "source_name": "ФФГЭ (Наградион)",
+                "name": prof["name"] or pname,
+                "player_id": pid,
+                "player_url": purl or f"https://ffge.nagradion.ru/player/{pid}",
+                "matches": prof["matches"],
+                "goals": prof["goals"],
+                "assists": prof["assists"],
+                "total_pts": prof["goals"] + prof["assists"],
+                "yellow_cards": prof["yellow_cards"],
+                "red_cards": prof["red_cards"],
+                "mvp_count": 0,
+                "teams": prof["teams"]
+            })
+        else:
+            t_map = {}
+            tot_m, tot_g, tot_a, tot_y, tot_r = 0, 0, 0, 0, 0
+            for r in rows:
+                tot_m += r["matches"]
+                tot_g += r["goals"]
+                tot_a += r["assists"]
+                tot_y += r["yc"]
+                tot_r += r["rc"]
+                tm = r["team"]
+                if tm:
+                    if tm not in t_map:
+                        t_map[tm] = {
+                            "team_name": tm,
+                            "matches": 0, "goals": 0, "assists": 0,
+                            "yellow_cards": 0, "red_cards": 0,
+                            "division": r["tournament"]
+                        }
+                    t_map[tm]["matches"] += r["matches"]
+                    t_map[tm]["goals"] += r["goals"]
+                    t_map[tm]["assists"] += r["assists"]
+                    t_map[tm]["yellow_cards"] += r["yc"]
+                    t_map[tm]["red_cards"] += r["rc"]
+
+            results.append({
+                "source_id": "ffge",
+                "source_name": "ФФГЭ (Наградион)",
+                "name": pname,
+                "player_id": pid,
+                "player_url": purl or f"https://ffge.nagradion.ru/player/{pid}",
+                "matches": tot_m,
+                "goals": tot_g,
+                "assists": tot_a,
+                "total_pts": tot_g + tot_a,
+                "yellow_cards": tot_y,
+                "red_cards": tot_r,
+                "mvp_count": 0,
+                "teams": list(t_map.values())
+            })
+
+    _cache[cache_key] = (results, time.time())
+    return results
 
 
 def search_all_sources(query: str) -> list[dict]:
