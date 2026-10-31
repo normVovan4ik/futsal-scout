@@ -1,8 +1,8 @@
 """
-Futsal Scout API Server v3.0
-Поиск игроков по всем 3 сайтам: Лига 5х5, Лига Старт и ФФГЭ Наградион.
+Futsal Scout API Server v4.0
+Поиск игроков и команд по всем 3 сайтам: Лига 5х5, Лига Старт и ФФГЭ Наградион.
 Поддержка живого поиска по ФИО, слияние дублирующихся аккаунтов,
-разбивка статистики по всем командам и дивизионам, SQLite база избранного.
+разбивка статистики по всем командам и дивизионам, поиск команд, загрузка кастомных аватаров и SQLite база.
 """
 
 import sys
@@ -20,10 +20,10 @@ if sys.platform == "win32":
     except Exception:
         pass
 
-from fastapi import FastAPI, HTTPException, Query, Body
+from fastapi import FastAPI, HTTPException, Query, Body, UploadFile, File
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 import uvicorn
 import requests as req_lib
 from bs4 import BeautifulSoup
@@ -57,23 +57,6 @@ SOURCES = {
     }
 }
 
-# Ключевые взрослые турниры по футзалу / мини-футболу на ffge.nagradion.ru
-FFGE_TOURNAMENTS = [
-    ("46382", "Финал Чемпионата Екатеринбурга 5х5 (2026)"),
-    ("46309", "Чемпионат города 1 Дивизион (26/27)"),
-    ("46310", "Чемпионат города 2 Дивизион (26/27)"),
-    ("46315", "Чемпионат города 3 Дивизион (26/27)"),
-    ("46316", "Чемпионат города 4 Дивизион (26/27)"),
-    ("45832", "Первенство Чкаловского района 5х5 (2026)"),
-    ("45862", "Первенство Кировского района 5х5 (2026)"),
-    ("45884", "Первенство Железнодорожного района 5х5 (2026)"),
-    ("45993", "Первенство Академического района 5х5 (2026)"),
-    ("45914", "Турнир по мини-футболу 5х5 лето 2026"),
-    ("46051", "Кубок Лиги заводов 6х6 (2026)"),
-    ("45449", "Кубок ФФГЕ 5х5"),
-    ("46327", "Турнир памяти Самойлова 5х5")
-]
-
 _cache: dict = {}
 _cache_ttl = 600  # 10 минут
 
@@ -90,7 +73,6 @@ def get_soup(url: str) -> BeautifulSoup | None:
         r.encoding = "utf-8"
         return BeautifulSoup(r.text, "lxml")
     except Exception as e:
-        print(f"Ошибка загрузки {url}: {e}")
         return None
 
 
@@ -99,11 +81,49 @@ def parse_number(text: str) -> int:
     return int(m.group(1)) if m else 0
 
 
+def get_ffge_futsal_tournaments(limit=40) -> list[tuple]:
+    """Динамически получает список актуальных футзальных турниров ФФГЭ с календаря."""
+    cache_key = "ffge:tournaments_plan"
+    if cache_key in _cache:
+        data, ts = _cache[cache_key]
+        if time.time() - ts < 1800:
+            return data[:limit]
+
+    url = "https://ffge.nagradion.ru/tournament-plan"
+    soup = get_soup(url)
+    if not soup:
+        # Fallback на известные ключевые турниры
+        return [
+            ("46382", "Финал Чемпионата Екатеринбурга 5х5 (2026)"),
+            ("46309", "Чемпионат города 1 Дивизион (26/27)"),
+            ("46310", "Чемпионат города 2 Дивизион (26/27)"),
+            ("46315", "Чемпионат города 3 Дивизион (26/27)"),
+            ("46316", "Чемпионат города 4 Дивизион (26/27)"),
+            ("45832", "Первенство Чкаловского района 5х5 (2026)"),
+            ("45862", "Первенство Кировского района 5х5 (2026)"),
+            ("45884", "Первенство Железнодорожного района 5х5 (2026)"),
+            ("45993", "Первенство Академического района 5х5 (2026)"),
+            ("45914", "Турнир по мини-футболу 5х5 лето 2026")
+        ]
+
+    futsal_t = []
+    for a in soup.find_all("a", href=True):
+        m = re.search(r"/tournament(\d+)", a["href"])
+        if m:
+            tid = m.group(1)
+            name = a.text.strip()
+            if name and len(name) > 3 and not name.startswith("Шахматка"):
+                nl = name.lower()
+                if any(w in nl for w in ["футзал", "мини-футбол", "5х5", "5 на 5", "6х6", "7х7", "чемпионат", "первенство", "кубок", "лига"]):
+                    if not any(t[0] == tid for t in futsal_t):
+                        futsal_t.append((tid, name))
+
+    _cache[cache_key] = (futsal_t, time.time())
+    return futsal_t[:limit]
+
+
 def parse_player_teams_detail(player_url: str) -> list[dict]:
-    """
-    Парсит детальную страницу игрока (/player/{id}) и извлекает команды,
-    за которые он выступал, с разбивкой статистики по каждой команде.
-    """
+    """Парсит детальную страницу игрока (/player/{id}) и извлекает команды."""
     if not player_url:
         return []
 
@@ -129,7 +149,6 @@ def parse_player_teams_detail(player_url: str) -> list[dict]:
                     tds[0] if len(tds[0]) > 2 and not any(c.isdigit() for c in tds[0]) else ""
                 )
 
-                # Проверяем строку команды: tds[1] - матчи, tds[2] - голы
                 if team_name and re.match(r"^\d+$", tds[1]) and re.match(r"^\d+", tds[2]):
                     matches = int(tds[1])
                     goals = parse_number(tds[2])
@@ -153,7 +172,6 @@ def parse_player_teams_detail(player_url: str) -> list[dict]:
                     ts["yellow_cards"] += yc
                     ts["red_cards"] += rc
 
-    # Если через таблицу не нашли, ищем упоминания команд в ссылках
     if not teams_stats:
         found_names = set()
         for a in soup.select("a[href*='/team/']"):
@@ -175,10 +193,10 @@ def parse_player_teams_detail(player_url: str) -> list[dict]:
 
 
 # =============================================================================
-# Поиск в Лига 5х5 и Лига Старт напрямую по всей базе
+# Поиск игроков
 # =============================================================================
 def search_liga_source(source_key: str, query: str) -> list[dict]:
-    """Парсит поиск игроков по ФИО для LigaStart / Liga5x5 по всей базе."""
+    """Парсит поиск игроков по ФИО для LigaStart / Liga5x5."""
     if source_key not in SOURCES:
         return []
 
@@ -203,25 +221,17 @@ def search_liga_source(source_key: str, query: str) -> list[dict]:
     col = {}
     seen_g = False
     for i, h in enumerate(headers):
-        if h == "#":
-            col["rank"] = i
-        elif "Игрок" in h:
-            col["name"] = i
-        elif h == "И":
-            col["matches"] = i
+        if h == "#": col["rank"] = i
+        elif "Игрок" in h: col["name"] = i
+        elif h == "И": col["matches"] = i
         elif h.startswith("Г") and not seen_g:
             col["goals"] = i
             seen_g = True
-        elif h == "П":
-            col["assists"] = i
-        elif h == "Г+П":
-            col["total_pts"] = i
-        elif "ЖК" in h:
-            col["yellow_cards"] = i
-        elif "КК" in h:
-            col["red_cards"] = i
-        elif "Лм" in h or "MVP" in h:
-            col["mvp"] = i
+        elif h == "П": col["assists"] = i
+        elif h == "Г+П": col["total_pts"] = i
+        elif "ЖК" in h: col["yellow_cards"] = i
+        elif "КК" in h: col["red_cards"] = i
+        elif "Лм" in h or "MVP" in h: col["mvp"] = i
 
     for row in table.select("tbody tr"):
         cells = row.select("td")
@@ -272,15 +282,11 @@ def search_liga_source(source_key: str, query: str) -> list[dict]:
         })
 
     _cache[cache_key] = (players, time.time())
-    print(f"Спарсено из {src['name']} по запросу «{query}»: {len(players)} игроков")
     return players
 
 
-# =============================================================================
-# Поиск в ФФГЭ (Наградион) по турнирам футзала 5х5
-# =============================================================================
 def search_ffge_source(query: str) -> list[dict]:
-    """Ищет игрока по ключевым футзальным турнирам на ffge.nagradion.ru."""
+    """Ищет игрока по расширенному пулу турниров на ffge.nagradion.ru."""
     q_low = query.strip().lower()
     if not q_low:
         return []
@@ -290,6 +296,8 @@ def search_ffge_source(query: str) -> list[dict]:
         data, ts = _cache[cache_key]
         if time.time() - ts < _cache_ttl:
             return data
+
+    tournaments = get_ffge_futsal_tournaments(limit=40)
 
     def check_tournament(t_info):
         tid, tname = t_info
@@ -347,30 +355,16 @@ def search_ffge_source(query: str) -> list[dict]:
                 })
         return found
 
-    with ThreadPoolExecutor(max_workers=5) as ex:
-        results = list(ex.map(check_tournament, FFGE_TOURNAMENTS))
+    with ThreadPoolExecutor(max_workers=10) as ex:
+        results = list(ex.map(check_tournament, tournaments))
 
     flattened = [p for sub in results for p in sub]
     _cache[cache_key] = (flattened, time.time())
-    print(f"Спарсено из ФФГЭ (Наградион) по запросу «{query}»: {len(flattened)} записей")
     return flattened
 
 
-def scrape_league_table(source_key: str) -> list[dict]:
-    """Парсит общую таблицу для вкладки 'Парсер / Импорт'."""
-    if source_key == "ffge":
-        return search_ffge_source(" ")
-    return search_liga_source(source_key, "")
-
-
-# =============================================================================
-# Многосайтовый поиск и умное объединение профилей
-# =============================================================================
 def search_all_sources(query: str) -> list[dict]:
-    """
-    Ищет по всем 3 сайтам параллельно (Лига 5х5, Лига Старт, ФФГЭ Наградион).
-    Группирует игроков по Фамилии и Имени, собирая все аккаунты и команды.
-    """
+    """Ищет игроков по всем 3 сайтам параллельно и группирует по ФИО."""
     q = query.strip()
     if not q or len(q) < 2:
         return []
@@ -386,7 +380,6 @@ def search_all_sources(query: str) -> list[dict]:
 
     all_raw = liga5x5_players + ligastart_players + ffge_players
 
-    # Загружаем детальную информацию о командах для игроков из Лиги 5х5 и Лиги Старт
     def enrich_player(p):
         if p["source_id"] in ["liga5x5", "ligastart"] and p.get("player_url"):
             try:
@@ -396,11 +389,9 @@ def search_all_sources(query: str) -> list[dict]:
                 p["teams"] = []
         return p
 
-    with ThreadPoolExecutor(max_workers=6) as executor:
+    with ThreadPoolExecutor(max_workers=8) as executor:
         all_raw = list(executor.map(enrich_player, all_raw))
 
-    # Умная группировка по каноническому имени (Фамилия + Имя)
-    # Например: "Ершов Владимир Евгеньевич" и "Ершов Владимир" группируются в "Ершов Владимир"
     grouped: dict[str, dict] = {}
 
     def get_canonical_key(raw_name: str) -> str:
@@ -417,8 +408,8 @@ def search_all_sources(query: str) -> list[dict]:
             grouped[group_key] = {
                 "name": group_key,
                 "full_name": raw_name,
-                "accounts": [],          # Список всех отдельных аккаунтов этого человека
-                "all_teams": {},         # Сводная таблица по всем командам
+                "accounts": [],
+                "all_teams": {},
                 "sources_found": [],
                 "sources_data": {},
                 "total_matches": 0,
@@ -432,7 +423,6 @@ def search_all_sources(query: str) -> list[dict]:
             }
 
         g = grouped[group_key]
-        # Если встретили имя с отчеством, сохраняем как наиболее полное
         if len(raw_name.split()) > len(g["full_name"].split()):
             g["full_name"] = raw_name
 
@@ -442,7 +432,6 @@ def search_all_sources(query: str) -> list[dict]:
         if src_name not in g["sources_found"]:
             g["sources_found"].append(src_name)
 
-        # Добавляем аккаунт в список аккаунтов этого игрока
         g["accounts"].append({
             "account_id": p.get("player_id"),
             "player_url": p.get("player_url"),
@@ -457,7 +446,6 @@ def search_all_sources(query: str) -> list[dict]:
             "teams": p.get("teams", [])
         })
 
-        # Добавляем команды в общий список
         for t in p.get("teams", []):
             tname = t["team_name"]
             if not tname:
@@ -478,7 +466,6 @@ def search_all_sources(query: str) -> list[dict]:
             g["all_teams"][tname]["yellow_cards"] += t.get("yellow_cards", 0)
             g["all_teams"][tname]["red_cards"] += t.get("red_cards", 0)
 
-        # Суммируем в разрезе источника
         if src_id not in g["sources_data"]:
             badge_color = SOURCES.get(src_id, {}).get("badge_color", "slate")
             g["sources_data"][src_id] = {
@@ -506,7 +493,6 @@ def search_all_sources(query: str) -> list[dict]:
         if not s_entry.get("player_url"):
             s_entry["player_url"] = p.get("player_url")
 
-        # Суммарные числа
         g["total_matches"] += p.get("matches", 0)
         g["total_goals"] += p.get("goals", 0)
         g["total_assists"] += p.get("assists", 0)
@@ -517,14 +503,215 @@ def search_all_sources(query: str) -> list[dict]:
 
     result = list(grouped.values())
     result.sort(key=lambda x: (x["total_goals"] + x["total_assists"]), reverse=True)
-
     return result
+
+
+# =============================================================================
+# Поиск команд по всем 3 сайтам
+# =============================================================================
+def search_teams_liga5x5(q: str) -> list[dict]:
+    url = f"https://liga5x5.ru/participants/teams?name={quote(q)}"
+    soup = get_soup(url)
+    if not soup: return []
+    links = soup.find_all("a", href=lambda h: h and "/team/" in h)
+    found, seen = [], set()
+    for a in links:
+        href = a['href']
+        tname = a.text.strip()
+        if tname and href not in seen:
+            seen.add(href)
+            found.append({
+                "source_id": "liga5x5",
+                "source_name": "Лига 5х5",
+                "team_name": tname,
+                "team_url": f"https://liga5x5.ru{href}"
+            })
+    return found
+
+
+def search_teams_ligastart(q: str) -> list[dict]:
+    url = f"https://ligastart.ru/participants/teams?name={quote(q)}"
+    soup = get_soup(url)
+    if not soup: return []
+    links = soup.find_all("a", href=lambda h: h and "/team/" in h)
+    found, seen = [], set()
+    for a in links:
+        href = a['href']
+        tname = a.text.strip()
+        if tname and href not in seen:
+            seen.add(href)
+            found.append({
+                "source_id": "ligastart",
+                "source_name": "Лига Старт",
+                "team_name": tname,
+                "team_url": f"https://ligastart.ru{href}"
+            })
+    return found
+
+
+def enrich_liga_team_stats(team_info: dict) -> dict:
+    url = team_info.get("team_url")
+    if not url: return team_info
+    soup = get_soup(url)
+    if not soup: return team_info
+    text = soup.text
+    m_games = re.search(r"Игры\s*(\d+)", text, re.IGNORECASE)
+    m_wins = re.search(r"Победы\s*(\d+)", text, re.IGNORECASE)
+    m_goals = re.search(r"Голы\s*(\d+)", text, re.IGNORECASE)
+    m_tourneys = re.search(r"Турниры\s*(\d+)", text, re.IGNORECASE)
+
+    games = int(m_games.group(1)) if m_games else 0
+    wins = int(m_wins.group(1)) if m_wins else 0
+    goals = int(m_goals.group(1)) if m_goals else 0
+    tourneys = int(m_tourneys.group(1)) if m_tourneys else 0
+
+    team_info["games"] = games
+    team_info["wins"] = wins
+    team_info["goals"] = goals
+    team_info["tournaments_count"] = tourneys
+    team_info["winrate"] = round(wins / games * 100, 1) if games > 0 else 0
+    return team_info
+
+
+def search_teams_ffge(q: str) -> list[dict]:
+    tournaments = get_ffge_futsal_tournaments(limit=35)
+    q_low = q.strip().lower()
+
+    def check_t_teams(t_info):
+        tid, tname = t_info
+        res = []
+        try:
+            r = req_lib.get(f"https://ffge.nagradion.ru/tournament{tid}/table", headers=HTTP_HEADERS, timeout=6)
+            for m in re.finditer(r'renderComponent\("[^"]+",\s*\'TournamentTable\',\s*({.*?})\);', r.text):
+                try:
+                    data = json.loads(m.group(1))
+                    for u in data.get("users", []):
+                        raw_name = u.get("name", "")
+                        clean_name = re.sub(r'<[^>]+>', '', raw_name).strip()
+                        if q_low in clean_name.lower():
+                            stats = u.get("stats", {})
+                            games = int(stats.get("games", 0)) if str(stats.get("games", 0)).isdigit() else 0
+                            wins = int(stats.get("wins", 0)) if str(stats.get("wins", 0)).isdigit() else 0
+                            pts = int(stats.get("points", 0)) if str(stats.get("points", 0)).isdigit() else 0
+                            diff = stats.get("difference", "0 - 0")
+                            m_diff = re.search(r"(\d+)\s*-\s*(\d+)", diff)
+                            goals = int(m_diff.group(1)) if m_diff else 0
+
+                            m_link = re.search(r'href="([^"]+)"', raw_name)
+                            t_url = m_link.group(1) if m_link else f"https://ffge.nagradion.ru/tournament{tid}"
+
+                            res.append({
+                                "source_id": "ffge",
+                                "source_name": "ФФГЭ (Наградион)",
+                                "team_name": clean_name,
+                                "tournament": tname,
+                                "tournament_id": tid,
+                                "team_url": t_url,
+                                "games": games,
+                                "wins": wins,
+                                "goals": goals,
+                                "points": pts,
+                                "difference": diff,
+                                "tournaments_count": 1,
+                                "winrate": round(wins / games * 100, 1) if games > 0 else 0
+                            })
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        return res
+
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        all_res = list(ex.map(check_t_teams, tournaments))
+
+    return [t for sub in all_res for t in sub]
+
+
+def search_all_teams(query: str) -> list[dict]:
+    """Ищет команды по всем 3 сайтам, суммирует общую статистику и показывает по турнирам."""
+    q = query.strip()
+    if not q or len(q) < 2:
+        return []
+
+    cache_key = f"teams_search:{q.lower()}"
+    if cache_key in _cache:
+        data, ts = _cache[cache_key]
+        if time.time() - ts < _cache_ttl:
+            return data
+
+    with ThreadPoolExecutor(max_workers=3) as ex:
+        f_l5 = ex.submit(search_teams_liga5x5, q)
+        f_ls = ex.submit(search_teams_ligastart, q)
+        f_ffge = ex.submit(search_teams_ffge, q)
+
+        t_l5 = f_l5.result()
+        t_ls = f_ls.result()
+        t_ffge = f_ffge.result()
+
+    # Обогащаем команды из лиг 5х5 и старт подробной статистикой
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        t_l5 = list(ex.map(enrich_liga_team_stats, t_l5))
+        t_ls = list(ex.map(enrich_liga_team_stats, t_ls))
+
+    all_teams_raw = t_l5 + t_ls + t_ffge
+
+    # Группируем по каноническому имени команды (например, 'Спортмастер')
+    grouped: dict[str, dict] = {}
+    for t in all_teams_raw:
+        canon_name = t["team_name"].strip()
+        canon_key = canon_name.lower()
+
+        if canon_key not in grouped:
+            grouped[canon_key] = {
+                "team_name": canon_name,
+                "sources_found": [],
+                "tournaments": [],
+                "total_games": 0,
+                "total_wins": 0,
+                "total_goals": 0,
+                "total_tournaments": 0,
+                "winrate": 0,
+                "sample_url": t.get("team_url")
+            }
+
+        g = grouped[canon_key]
+        src_name = t["source_name"]
+        if src_name not in g["sources_found"]:
+            g["sources_found"].append(src_name)
+
+        g["total_games"] += t.get("games", 0)
+        g["total_wins"] += t.get("wins", 0)
+        g["total_goals"] += t.get("goals", 0)
+        g["total_tournaments"] += t.get("tournaments_count", 1)
+
+        # Сохраняем турнир / профиль
+        g["tournaments"].append({
+            "source_id": t.get("source_id"),
+            "source_name": src_name,
+            "tournament_name": t.get("tournament", src_name),
+            "games": t.get("games", 0),
+            "wins": t.get("wins", 0),
+            "goals": t.get("goals", 0),
+            "points": t.get("points"),
+            "difference": t.get("difference"),
+            "winrate": t.get("winrate", 0),
+            "team_url": t.get("team_url")
+        })
+
+    for g in grouped.values():
+        if g["total_games"] > 0:
+            g["winrate"] = round(g["total_wins"] / g["total_games"] * 100, 1)
+
+    res = list(grouped.values())
+    res.sort(key=lambda x: (x["total_games"], x["total_goals"]), reverse=True)
+    _cache[cache_key] = (res, time.time())
+    return res
 
 
 # =============================================================================
 # FastAPI приложение
 # =============================================================================
-app = FastAPI(title="Futsal Scout Hub", version="3.0")
+app = FastAPI(title="Futsal Scout Hub", version="4.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -574,23 +761,27 @@ def search_endpoint(q: str = Query(..., min_length=2)):
     }
 
 
+@app.get("/api/teams/search")
+def search_teams_endpoint(q: str = Query(..., min_length=2)):
+    results = search_all_teams(q)
+    return {
+        "query": q,
+        "count": len(results),
+        "results": results
+    }
+
+
 @app.get("/api/player_teams")
 def player_teams_endpoint(url: str = Query(...)):
-    """Получить список команд для конкретного игрока."""
     teams = parse_player_teams_detail(url)
     return {"url": url, "teams": teams}
 
 
 @app.post("/api/merge_accounts")
 def merge_accounts_endpoint(accounts: list[dict] = Body(...)):
-    """
-    Слияние нескольких аккаунтов одного игрока.
-    СТРОГОЕ ПРАВИЛО: Имена и фамилии во всех объединяемых аккаунтах должны совпадать!
-    """
     if len(accounts) < 2:
         raise HTTPException(400, "Для слияния необходимо выбрать как минимум 2 аккаунта!")
 
-    # Проверка на совпадение ФИО (по первым двум словам: Фамилия и Имя)
     def name_tokens(name_str):
         parts = name_str.strip().lower().split()
         return " ".join(parts[:2]) if len(parts) >= 2 else "".join(parts)
@@ -627,7 +818,6 @@ def merge_accounts_endpoint(accounts: list[dict] = Body(...)):
         merged["total_mvp"] += a.get("mvp_count", 0)
         merged["total_pts"] += (a.get("goals", 0) + a.get("assists", 0))
 
-        # Объединяем команды
         for t in a.get("teams", []):
             tname = t["team_name"]
             if not tname:
@@ -648,12 +838,6 @@ def merge_accounts_endpoint(accounts: list[dict] = Body(...)):
             merged["all_teams"][tname]["red_cards"] += t.get("red_cards", 0)
 
     return {"status": "ok", "merged_player": merged}
-
-
-@app.get("/api/players")
-def get_players_endpoint(source: str = Query("liga5x5"), limit: int = Query(100)):
-    players = scrape_league_table(source)
-    return {"source": source, "count": len(players[:limit]), "players": players[:limit]}
 
 
 @app.get("/api/favorites")
