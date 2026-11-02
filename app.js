@@ -1794,7 +1794,8 @@ async function startSoloPannaFight() {
   let knockoutWinner = 0;
 
   for (let i = 0; i < roundsConfig.length; i++) {
-    await new Promise(r => setTimeout(r, 700));
+    // Комфортная пауза для чтения раунда (2 сек)
+    await new Promise(r => setTimeout(r, 2000));
 
     const r = roundsConfig[i];
     const roll1 = Math.floor(Math.random() * 15) - 7;
@@ -1858,7 +1859,7 @@ async function startSoloPannaFight() {
     if (instantKnockout) break;
   }
 
-  await new Promise(r => setTimeout(r, 600));
+  await new Promise(r => setTimeout(r, 1200));
 
   ceremony.classList.remove("hidden");
   ceremony.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -2329,9 +2330,16 @@ async function startTeam5x5Match() {
   ];
 
   for (let i = 0; i < matchTimeline.length; i++) {
-    await new Promise(r => setTimeout(r, 650));
-
     const ev = matchTimeline[i];
+
+    // Динамическая пауза: даём больше времени на чтение голов и ключевых моментов
+    let eventDelay = 1800; // Обычный момент (1.8 сек)
+    if (ev.type === "goal" || ev.type === "clutch_goal" || ev.type === "double_penalty") {
+      eventDelay = 2600; // Гол / Дабл-пенальти (2.6 сек, чтобы прочитать автора и счёт)
+    } else if (ev.type === "halftime" || ev.type === "fulltime") {
+      eventDelay = 2200; // Перерыв / Финал (2.2 сек)
+    }
+    await new Promise(r => setTimeout(r, eventDelay));
     minuteEl.innerText = `${ev.min} мин`;
 
     let eventColor = "border-slate-800 text-slate-300";
@@ -2341,11 +2349,15 @@ async function startTeam5x5Match() {
       if (ev.team === 1) {
         score1++;
         scoreT1El.innerText = score1;
+        scoreT1El.classList.add("scale-125", "text-yellow-300");
+        setTimeout(() => scoreT1El.classList.remove("scale-125", "text-yellow-300"), 600);
         eventColor = "border-amber-500/50 bg-amber-500/10 text-amber-200";
         matchGoals.push({ team: 1, min: ev.min, scorer: ev.scorer });
       } else {
         score2++;
         scoreT2El.innerText = score2;
+        scoreT2El.classList.add("scale-125", "text-cyan-300");
+        setTimeout(() => scoreT2El.classList.remove("scale-125", "text-cyan-300"), 600);
         eventColor = "border-cyan-500/50 bg-cyan-500/10 text-cyan-200";
         matchGoals.push({ team: 2, min: ev.min, scorer: ev.scorer });
       }
@@ -2375,7 +2387,7 @@ async function startTeam5x5Match() {
     eventsContainer.scrollTop = eventsContainer.scrollHeight;
   }
 
-  await new Promise(r => setTimeout(r, 600));
+  await new Promise(r => setTimeout(r, 1400));
 
   summary.classList.remove("hidden");
   summary.scrollIntoView({ behavior: "smooth", block: "nearest" });
