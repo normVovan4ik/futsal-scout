@@ -50,7 +50,7 @@
           <i class="fa-solid fa-people-group text-emerald-400"></i> Пятёрка 5х5
         </button>
         <button onclick="switchTab('head-to-head')" id="tab-btn-head-to-head" class="tab-btn px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-slate-400 hover:text-white">
-          <i class="fa-solid fa-bolt"></i> Дуэль (H2H)
+          <i class="fa-solid fa-fire text-amber-400"></i> Битвы (1х1 / 5х5)
         </button>
         <button onclick="switchTab('teams-preview')" id="tab-btn-teams-preview" class="tab-btn px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-slate-400 hover:text-white">
           <i class="fa-solid fa-shield-halved"></i> Превью матча
@@ -639,235 +639,452 @@
         <div class="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-48 bg-gradient-to-b from-amber-500/20 via-rose-500/10 to-transparent blur-3xl pointer-events-none"></div>
 
         <!-- Шапка арены -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pb-6 border-b border-slate-800/80 relative z-10">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-6 border-b border-slate-800/80 relative z-10">
           <div>
             <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-black uppercase tracking-wider mb-2">
-              <i class="fa-solid fa-fire text-amber-400 animate-pulse"></i> Арена гладиаторов 5х5
+              <i class="fa-solid fa-fire text-amber-400 animate-pulse"></i> Футзальные батлы Екатеринбурга
             </div>
             <h2 class="text-2xl sm:text-3xl font-black text-white flex items-center gap-3">
-              ⚔️ Футзальная Дуэль: Битва 1 на 1
+              ⚔️ Бои на паркете: 1 на 1 и 5 на 5
             </h2>
             <p class="text-xs sm:text-sm text-slate-400 mt-1">
-              Выберите двух любых игроков из открытых протоколов 3 лиг или из Избранного и запустите раундовую битву на паркете!
+              Выберите формат битвы: одиночный уличный поединок 1х1 (Панна-дуэль) или полноценный командный матч двух пятёрок 5х5!
             </p>
           </div>
 
+          <!-- Кнопки управления -->
           <div class="flex items-center gap-2">
-            <button onclick="swapDuelPlayers()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition flex items-center gap-1.5" title="Поменять местами бойцов">
-              <i class="fa-solid fa-arrow-right-arrow-left text-amber-400"></i> Поменять бойцов
+            <button onclick="swapDuelPlayers()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition flex items-center gap-1.5" title="Поменять местами стороны">
+              <i class="fa-solid fa-arrow-right-arrow-left text-amber-400"></i> Поменять стороны
             </button>
-            <button onclick="resetDuelArena()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition flex items-center gap-1.5" title="Сбросить дуэль">
+            <button onclick="resetDuelArena()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition flex items-center gap-1.5" title="Сбросить">
               <i class="fa-solid fa-rotate-right text-cyan-400"></i> Сброс
             </button>
           </div>
         </div>
 
-        <!-- РИНГ / ЗОНА ВЫБОРА БОЙЦОВ -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch relative z-10">
-          
-          <!-- БОЕЦ #1 (Левый золотой угол) -->
-          <div class="lg:col-span-5 bg-slate-950 p-5 sm:p-6 rounded-3xl border-2 border-amber-500/40 relative shadow-xl flex flex-col justify-between">
-            <div class="absolute -top-3 left-6 px-3 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 text-[11px] font-black uppercase tracking-wider shadow">
-              🟡 Боец #1 (Золотой угол)
-            </div>
-
-            <!-- Селекторы бойца 1 -->
-            <div class="space-y-3 mt-2">
-              <div class="flex items-center gap-2">
-                <button onclick="loadCardPlayerToDuel(1)" class="flex-1 py-1.5 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition flex items-center justify-center gap-1.5">
-                  <i class="fa-solid fa-bolt"></i> Взять с карточки
-                </button>
-                <select id="h2h-fav-select-1" onchange="loadFavToDuel(1, this.value)" class="flex-1 py-1.5 px-3 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-slate-200 focus:outline-none focus:border-amber-400">
-                  <option value="">Из избранного...</option>
-                </select>
-              </div>
-
-              <!-- Поиск игрока 1 -->
-              <div class="relative">
-                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
-                <input id="h2h-search-input-1" type="text" placeholder="Поиск бойца 1 по ФИО во всех 3 лигах..." oninput="handleDuelSearch(1, this.value)"
-                  class="w-full bg-slate-900 border border-slate-700 focus:border-amber-400 rounded-xl pl-8 pr-8 py-2 text-xs text-white placeholder-slate-500 focus:outline-none transition">
-                <button onclick="clearDuelSearch(1)" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white text-xs">
-                  <i class="fa-solid fa-xmark"></i>
-                </button>
-                <!-- Выпадающий список найденных игроков -->
-                <div id="h2h-search-results-1" class="hidden absolute top-full left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-slate-900 border border-amber-500/40 rounded-2xl shadow-2xl z-50 p-2 space-y-1 text-xs"></div>
-              </div>
-            </div>
-
-            <!-- Визитка бойца 1 -->
-            <div class="mt-5 p-4 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center gap-4">
-              <div class="relative w-20 h-24 rounded-2xl overflow-hidden border-2 border-amber-400/80 bg-slate-950 shrink-0 shadow-lg">
-                <img id="h2h-p1-img" src="" class="w-full h-full object-cover">
-                <span id="h2h-p1-pos" class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-amber-500 text-slate-950">PIV</span>
-              </div>
-              <div class="min-w-0 flex-1">
-                <div class="flex items-center justify-between gap-2">
-                  <h4 id="h2h-p1-name" class="text-base font-black text-white truncate">Иван Петров</h4>
-                  <div class="px-2.5 py-1 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-black shrink-0">
-                    <span id="h2h-p1-ovr">88</span> OVR
-                  </div>
-                </div>
-                <p id="h2h-p1-team" class="text-xs text-slate-400 truncate mt-0.5">ЛФК «Зенит» Мини</p>
-                
-                <div class="grid grid-cols-4 gap-1.5 mt-3 text-center text-[10px]">
-                  <div class="bg-slate-950 p-1 rounded-lg border border-slate-800">
-                    <span class="text-slate-500 block">М</span>
-                    <span id="h2h-p1-matches" class="font-bold text-white">14</span>
-                  </div>
-                  <div class="bg-slate-950 p-1 rounded-lg border border-slate-800">
-                    <span class="text-slate-500 block">Г</span>
-                    <span id="h2h-p1-goals" class="font-bold text-amber-400">22</span>
-                  </div>
-                  <div class="bg-slate-950 p-1 rounded-lg border border-slate-800">
-                    <span class="text-slate-500 block">П</span>
-                    <span id="h2h-p1-assists" class="font-bold text-sky-400">9</span>
-                  </div>
-                  <div class="bg-slate-950 p-1 rounded-lg border border-slate-800">
-                    <span class="text-slate-500 block">ЖК</span>
-                    <span id="h2h-p1-yc" class="font-bold text-yellow-400">3</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          <!-- ЦЕНТР: VS & КНОПКА СРАЖЕНИЯ -->
-          <div class="lg:col-span-2 flex flex-col items-center justify-center gap-4 py-4 lg:py-0">
-            <div class="w-16 h-16 rounded-3xl bg-gradient-to-br from-amber-500/20 via-rose-500/20 to-cyan-500/20 border-2 border-rose-500/40 flex items-center justify-center text-xl font-black text-white shadow-2xl transform hover:rotate-12 transition">
-              ⚔️
-            </div>
-            
-            <button onclick="startDuelFight()" id="duel-fight-btn" class="w-full py-4 px-4 rounded-2xl bg-gradient-to-r from-amber-500 via-rose-500 to-cyan-500 hover:from-amber-400 hover:to-cyan-400 text-slate-950 font-black text-xs sm:text-sm uppercase tracking-wider transition-all transform hover:scale-105 shadow-xl shadow-rose-500/30 flex flex-col items-center justify-center gap-1">
-              <span class="flex items-center gap-1.5"><i class="fa-solid fa-fire text-amber-950"></i> В БОЙ НА ПАРКЕТЕ!</span>
-              <span class="text-[10px] normal-case opacity-80 font-bold">Симуляция 5 раундов 1х1</span>
-            </button>
-            <div class="text-[10px] text-slate-500 font-bold uppercase tracking-widest text-center">Futsal Clash 5x5</div>
-          </div>
-
-          <!-- БОЕЦ #2 (Правый циановый угол) -->
-          <div class="lg:col-span-5 bg-slate-950 p-5 sm:p-6 rounded-3xl border-2 border-cyan-500/40 relative shadow-xl flex flex-col justify-between">
-            <div class="absolute -top-3 right-6 px-3 py-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-cyan-600 text-slate-950 text-[11px] font-black uppercase tracking-wider shadow">
-              🔵 Боец #2 (Циановый угол)
-            </div>
-
-            <!-- Селекторы бойца 2 -->
-            <div class="space-y-3 mt-2">
-              <div class="flex items-center gap-2">
-                <select id="h2h-presets-select-2" onchange="loadPresetToDuel(2, this.value)" class="flex-1 py-1.5 px-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-xs font-bold text-cyan-300 focus:outline-none">
-                  <option value="">Быстрые пресеты...</option>
-                  <option value="ala">Артем Воронин (Ала, 11г + 18п)</option>
-                  <option value="fixo">Сергей «Танк» (Фиксо, 8 ЖК)</option>
-                  <option value="goleiro">Михаил Смирнов (Вратарь)</option>
-                </select>
-                <select id="h2h-fav-select-2" onchange="loadFavToDuel(2, this.value)" class="flex-1 py-1.5 px-3 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-slate-200 focus:outline-none focus:border-cyan-400">
-                  <option value="">Из избранного...</option>
-                </select>
-              </div>
-
-              <!-- Поиск игрока 2 -->
-              <div class="relative">
-                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
-                <input id="h2h-search-input-2" type="text" placeholder="Поиск бойца 2 по ФИО во всех 3 лигах..." oninput="handleDuelSearch(2, this.value)"
-                  class="w-full bg-slate-900 border border-slate-700 focus:border-cyan-400 rounded-xl pl-8 pr-8 py-2 text-xs text-white placeholder-slate-500 focus:outline-none transition">
-                <button onclick="clearDuelSearch(2)" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white text-xs">
-                  <i class="fa-solid fa-xmark"></i>
-                </button>
-                <!-- Выпадающий список найденных игроков -->
-                <div id="h2h-search-results-2" class="hidden absolute top-full left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-slate-900 border border-cyan-500/40 rounded-2xl shadow-2xl z-50 p-2 space-y-1 text-xs"></div>
-              </div>
-            </div>
-
-            <!-- Визитка бойца 2 -->
-            <div class="mt-5 p-4 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center gap-4">
-              <div class="relative w-20 h-24 rounded-2xl overflow-hidden border-2 border-cyan-400/80 bg-slate-950 shrink-0 shadow-lg">
-                <img id="h2h-p2-img" src="" class="w-full h-full object-cover">
-                <span id="h2h-p2-pos" class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-cyan-500 text-slate-950">ALA</span>
-              </div>
-              <div class="min-w-0 flex-1">
-                <div class="flex items-center justify-between gap-2">
-                  <h4 id="h2h-p2-name" class="text-base font-black text-white truncate">Артем Воронин</h4>
-                  <div class="px-2.5 py-1 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-xs font-black shrink-0">
-                    <span id="h2h-p2-ovr">85</span> OVR
-                  </div>
-                </div>
-                <p id="h2h-p2-team" class="text-xs text-slate-400 truncate mt-0.5">Спартак 5х5</p>
-                
-                <div class="grid grid-cols-4 gap-1.5 mt-3 text-center text-[10px]">
-                  <div class="bg-slate-950 p-1 rounded-lg border border-slate-800">
-                    <span class="text-slate-500 block">М</span>
-                    <span id="h2h-p2-matches" class="font-bold text-white">13</span>
-                  </div>
-                  <div class="bg-slate-950 p-1 rounded-lg border border-slate-800">
-                    <span class="text-slate-500 block">Г</span>
-                    <span id="h2h-p2-goals" class="font-bold text-amber-400">11</span>
-                  </div>
-                  <div class="bg-slate-950 p-1 rounded-lg border border-slate-800">
-                    <span class="text-slate-500 block">П</span>
-                    <span id="h2h-p2-assists" class="font-bold text-sky-400">18</span>
-                  </div>
-                  <div class="bg-slate-950 p-1 rounded-lg border border-slate-800">
-                    <span class="text-slate-500 block">ЖК</span>
-                    <span id="h2h-p2-yc" class="font-bold text-yellow-400">1</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
+        <!-- ============================================================== -->
+        <!-- ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМА БОЯ (1х1 vs 5х5)                           -->
+        <!-- ============================================================== -->
+        <div class="flex items-center p-1.5 bg-slate-950/90 rounded-2xl border border-slate-800 mb-8 max-w-xl mx-auto relative z-10 shadow-lg">
+          <button id="battle-mode-btn-solo" onclick="switchBattleMode('solo')" class="flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-lg shadow-amber-500/20">
+            <i class="fa-solid fa-user-ninja"></i> 1 на 1: Король коробки (Панна)
+          </button>
+          <button id="battle-mode-btn-team" onclick="switchBattleMode('team')" class="flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 text-slate-400 hover:text-white">
+            <i class="fa-solid fa-people-group"></i> 5 на 5: Матч пятёрок
+          </button>
         </div>
 
-        <!-- ИНТЕРАКТИВНОЕ ОКНО БИТВЫ НА ПАРКЕТЕ (DUEL ARENA SHOWDOWN) -->
-        <div id="duel-battle-arena" class="mt-8 bg-slate-950/90 border-2 border-rose-500/40 rounded-3xl p-6 relative overflow-hidden hidden shadow-2xl">
-          <div class="flex flex-col sm:flex-row items-center justify-between pb-4 border-b border-slate-800 gap-4">
-            <div class="flex items-center gap-3">
-              <span class="w-3 h-3 rounded-full bg-rose-500 animate-ping"></span>
-              <h3 class="text-lg font-black text-white flex items-center gap-2">
-                🔴 ПРЯМОЙ ЭФИР ДУЭЛИ: <span id="duel-live-title" class="text-amber-400">Раундовый батл 1 на 1</span>
+        <!-- ############################################################## -->
+        <!-- РЕЖИМ 1: ОДИНОЧНАЯ ДУЭЛЬ 1 НА 1 (КОРОЛЬ КОРОБКИ / PANNA)       -->
+        <!-- ############################################################## -->
+        <div id="battle-mode-solo-section" class="relative z-10">
+
+          <!-- РИНГ / ЗОНА ВЫБОРА БОЙЦОВ 1х1 -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+            
+            <!-- БОЕЦ #1 (Левый золотой угол) -->
+            <div class="lg:col-span-5 bg-slate-950 p-5 sm:p-6 rounded-3xl border-2 border-amber-500/40 relative shadow-xl flex flex-col justify-between">
+              <div class="absolute -top-3 left-6 px-3 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 text-[11px] font-black uppercase tracking-wider shadow">
+                🟡 Дуэлянт #1 (Золотой угол)
+              </div>
+
+              <!-- Селекторы бойца 1 -->
+              <div class="space-y-3 mt-2">
+                <div class="flex items-center gap-2">
+                  <button onclick="loadCardPlayerToDuel(1)" class="flex-1 py-1.5 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-bolt"></i> Взять с карточки
+                  </button>
+                  <select id="h2h-fav-select-1" onchange="loadFavToDuel(1, this.value)" class="flex-1 py-1.5 px-3 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-slate-200 focus:outline-none focus:border-amber-400">
+                    <option value="">Из избранного...</option>
+                  </select>
+                </div>
+
+                <!-- Поиск игрока 1 -->
+                <div class="relative">
+                  <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                  <input id="h2h-search-input-1" type="text" placeholder="Поиск дуэлянта 1 по ФИО (3 лиги)..." oninput="handleDuelSearch(1, this.value)"
+                    class="w-full bg-slate-900 border border-slate-700 focus:border-amber-400 rounded-xl pl-8 pr-8 py-2 text-xs text-white placeholder-slate-500 focus:outline-none transition">
+                  <button onclick="clearDuelSearch(1)" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white text-xs">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                  <div id="h2h-search-results-1" class="hidden absolute top-full left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-slate-900 border border-amber-500/40 rounded-2xl shadow-2xl z-50 p-2 space-y-1 text-xs"></div>
+                </div>
+              </div>
+
+              <!-- Визитка бойца 1 -->
+              <div class="mt-5 p-4 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center gap-4">
+                <div class="relative w-20 h-24 rounded-2xl overflow-hidden border-2 border-amber-400/80 bg-slate-950 shrink-0 shadow-lg">
+                  <img id="h2h-p1-img" src="" class="w-full h-full object-cover">
+                  <span id="h2h-p1-pos" class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-amber-500 text-slate-950">PIV</span>
+                </div>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center justify-between gap-2">
+                    <h4 id="h2h-p1-name" class="text-base font-black text-white truncate">Иван Петров</h4>
+                    <div class="px-2.5 py-1 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-black shrink-0">
+                      <span id="h2h-p1-ovr">88</span> OVR
+                    </div>
+                  </div>
+                  <p id="h2h-p1-team" class="text-xs text-slate-400 truncate mt-0.5">ЛФК «Зенит» Мини</p>
+                  
+                  <div class="grid grid-cols-4 gap-1.5 mt-3 text-center text-[10px]">
+                    <div class="bg-slate-950 p-1 rounded-lg border border-slate-800">
+                      <span class="text-slate-500 block">М</span>
+                      <span id="h2h-p1-matches" class="font-bold text-white">14</span>
+                    </div>
+                    <div class="bg-slate-950 p-1 rounded-lg border border-slate-800">
+                      <span class="text-slate-500 block">Г</span>
+                      <span id="h2h-p1-goals" class="font-bold text-amber-400">22</span>
+                    </div>
+                    <div class="bg-slate-950 p-1 rounded-lg border border-slate-800">
+                      <span class="text-slate-500 block">П</span>
+                      <span id="h2h-p1-assists" class="font-bold text-sky-400">9</span>
+                    </div>
+                    <div class="bg-slate-950 p-1 rounded-lg border border-slate-800">
+                      <span class="text-slate-500 block">ЖК</span>
+                      <span id="h2h-p1-yc" class="font-bold text-yellow-400">3</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- ЦЕНТР: VS & КНОПКА ПАННА-ДУЭЛИ 1х1 -->
+            <div class="lg:col-span-2 flex flex-col items-center justify-center gap-4 py-4 lg:py-0">
+              <div class="w-16 h-16 rounded-3xl bg-gradient-to-br from-amber-500/20 via-rose-500/20 to-cyan-500/20 border-2 border-rose-500/40 flex items-center justify-center text-xl font-black text-white shadow-2xl transform hover:rotate-12 transition">
+                ⚔️
+              </div>
+              
+              <button onclick="startSoloPannaFight()" id="solo-fight-btn" class="w-full py-4 px-4 rounded-2xl bg-gradient-to-r from-amber-500 via-rose-500 to-cyan-500 hover:from-amber-400 hover:to-cyan-400 text-slate-950 font-black text-xs sm:text-sm uppercase tracking-wider transition-all transform hover:scale-105 shadow-xl shadow-rose-500/30 flex flex-col items-center justify-center gap-1">
+                <span class="flex items-center gap-1.5"><i class="fa-solid fa-crown text-amber-950"></i> ВЫЙТИ В КОРОБКУ 1х1!</span>
+                <span class="text-[10px] normal-case opacity-90 font-bold">Панна-дуэль на микро-площадке</span>
+              </button>
+              <div class="text-[10px] text-slate-500 font-bold uppercase tracking-widest text-center">Panna Showdown 1x1</div>
+            </div>
+
+            <!-- БОЕЦ #2 (Правый циановый угол) -->
+            <div class="lg:col-span-5 bg-slate-950 p-5 sm:p-6 rounded-3xl border-2 border-cyan-500/40 relative shadow-xl flex flex-col justify-between">
+              <div class="absolute -top-3 right-6 px-3 py-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-cyan-600 text-slate-950 text-[11px] font-black uppercase tracking-wider shadow">
+                🔵 Дуэлянт #2 (Циановый угол)
+              </div>
+
+              <!-- Селекторы бойца 2 -->
+              <div class="space-y-3 mt-2">
+                <div class="flex items-center gap-2">
+                  <select id="h2h-presets-select-2" onchange="loadPresetToDuel(2, this.value)" class="flex-1 py-1.5 px-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-xs font-bold text-cyan-300 focus:outline-none">
+                    <option value="">Быстрые пресеты...</option>
+                    <option value="ala">Артем Воронин (Ала, 11г + 18п)</option>
+                    <option value="fixo">Сергей «Танк» (Фиксо, 8 ЖК)</option>
+                    <option value="goleiro">Михаил Смирнов (Вратарь)</option>
+                  </select>
+                  <select id="h2h-fav-select-2" onchange="loadFavToDuel(2, this.value)" class="flex-1 py-1.5 px-3 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-slate-200 focus:outline-none focus:border-cyan-400">
+                    <option value="">Из избранного...</option>
+                  </select>
+                </div>
+
+                <!-- Поиск игрока 2 -->
+                <div class="relative">
+                  <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                  <input id="h2h-search-input-2" type="text" placeholder="Поиск дуэлянта 2 по ФИО (3 лиги)..." oninput="handleDuelSearch(2, this.value)"
+                    class="w-full bg-slate-900 border border-slate-700 focus:border-cyan-400 rounded-xl pl-8 pr-8 py-2 text-xs text-white placeholder-slate-500 focus:outline-none transition">
+                  <button onclick="clearDuelSearch(2)" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white text-xs">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                  <div id="h2h-search-results-2" class="hidden absolute top-full left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-slate-900 border border-cyan-500/40 rounded-2xl shadow-2xl z-50 p-2 space-y-1 text-xs"></div>
+                </div>
+              </div>
+
+              <!-- Визитка бойца 2 -->
+              <div class="mt-5 p-4 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center gap-4">
+                <div class="relative w-20 h-24 rounded-2xl overflow-hidden border-2 border-cyan-400/80 bg-slate-950 shrink-0 shadow-lg">
+                  <img id="h2h-p2-img" src="" class="w-full h-full object-cover">
+                  <span id="h2h-p2-pos" class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-cyan-500 text-slate-950">ALA</span>
+                </div>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center justify-between gap-2">
+                    <h4 id="h2h-p2-name" class="text-base font-black text-white truncate">Артем Воронин</h4>
+                    <div class="px-2.5 py-1 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-xs font-black shrink-0">
+                      <span id="h2h-p2-ovr">85</span> OVR
+                    </div>
+                  </div>
+                  <p id="h2h-p2-team" class="text-xs text-slate-400 truncate mt-0.5">Спартак 5х5</p>
+                  
+                  <div class="grid grid-cols-4 gap-1.5 mt-3 text-center text-[10px]">
+                    <div class="bg-slate-950 p-1 rounded-lg border border-slate-800">
+                      <span class="text-slate-500 block">М</span>
+                      <span id="h2h-p2-matches" class="font-bold text-white">13</span>
+                    </div>
+                    <div class="bg-slate-950 p-1 rounded-lg border border-slate-800">
+                      <span class="text-slate-500 block">Г</span>
+                      <span id="h2h-p2-goals" class="font-bold text-amber-400">11</span>
+                    </div>
+                    <div class="bg-slate-950 p-1 rounded-lg border border-slate-800">
+                      <span class="text-slate-500 block">П</span>
+                      <span id="h2h-p2-assists" class="font-bold text-sky-400">18</span>
+                    </div>
+                    <div class="bg-slate-950 p-1 rounded-lg border border-slate-800">
+                      <span class="text-slate-500 block">ЖК</span>
+                      <span id="h2h-p2-yc" class="font-bold text-yellow-400">1</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+          <!-- ИНТЕРАКТИВНОЕ ОКНО ПАННА-ДУЭЛИ 1х1 -->
+          <div id="duel-battle-arena" class="mt-8 bg-slate-950/90 border-2 border-rose-500/40 rounded-3xl p-6 relative overflow-hidden hidden shadow-2xl">
+            <div class="flex flex-col sm:flex-row items-center justify-between pb-4 border-b border-slate-800 gap-4">
+              <div class="flex items-center gap-3">
+                <span class="w-3 h-3 rounded-full bg-rose-500 animate-ping"></span>
+                <h3 class="text-lg font-black text-white flex items-center gap-2">
+                  👑 ПРЯМОЙ ЭФИР: <span id="duel-live-title" class="text-amber-400">Панна-битва за звание Короля коробки</span>
+                </h3>
+              </div>
+              
+              <!-- Табло очков 1х1 -->
+              <div class="flex items-center gap-3 bg-slate-900 px-5 py-2 rounded-2xl border border-slate-700">
+                <span id="duel-score-p1-name" class="text-xs font-black text-amber-400">Боец 1</span>
+                <span class="text-2xl font-black text-white tracking-widest"><span id="duel-score-p1" class="text-amber-400">0</span> : <span id="duel-score-p2" class="text-cyan-400">0</span></span>
+                <span id="duel-score-p2-name" class="text-xs font-black text-cyan-400">Боец 2</span>
+              </div>
+            </div>
+
+            <!-- Лента раундов панна-дуэли -->
+            <div id="duel-rounds-container" class="mt-6 space-y-3"></div>
+
+            <!-- Церемония Короля коробки -->
+            <div id="duel-winner-ceremony" class="mt-6 p-6 rounded-2xl bg-gradient-to-r from-amber-500/10 via-slate-900 to-cyan-500/10 border border-slate-700 text-center hidden"></div>
+          </div>
+
+          <!-- СРАВНИТЕЛЬНЫЕ ПОЛОСЫ ХАРАКТЕРИСТИК (H2H STAT BARS) -->
+          <div class="mt-8 bg-slate-950/60 p-6 rounded-3xl border border-slate-800">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-base font-black text-white flex items-center gap-2">
+                <i class="fa-solid fa-chart-simple text-amber-400"></i> Сравнение 6 характеристик 5х5
               </h3>
+              <span class="text-xs text-slate-500">Золотой = Боец 1 · Циановый = Боец 2</span>
             </div>
-            
-            <!-- Табло счёта раундов -->
-            <div class="flex items-center gap-3 bg-slate-900 px-5 py-2 rounded-2xl border border-slate-700">
-              <span id="duel-score-p1-name" class="text-xs font-black text-amber-400">Боец 1</span>
-              <span class="text-2xl font-black text-white tracking-widest"><span id="duel-score-p1" class="text-amber-400">0</span> : <span id="duel-score-p2" class="text-cyan-400">0</span></span>
-              <span id="duel-score-p2-name" class="text-xs font-black text-cyan-400">Боец 2</span>
+
+            <div class="space-y-3.5" id="h2h-bars-container"></div>
+
+            <div class="mt-6 p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-slate-900 to-cyan-500/10 border border-slate-800 text-center">
+              <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">СКАУТСКИЙ ВЕРДИКТ</div>
+              <div id="h2h-verdict" class="text-sm font-black text-white"></div>
             </div>
           </div>
 
-          <!-- Лента раундов -->
-          <div id="duel-rounds-container" class="mt-6 space-y-3">
-            <!-- Раунды динамически создаются через JS с анимацией -->
-          </div>
-
-          <!-- Итоговое награждение / вердикт дуэли -->
-          <div id="duel-winner-ceremony" class="mt-6 p-6 rounded-2xl bg-gradient-to-r from-amber-500/10 via-slate-900 to-cyan-500/10 border border-slate-700 text-center hidden">
-            <!-- Победитель и шуточный футзальный вердикт -->
-          </div>
         </div>
 
-        <!-- СРАВНИТЕЛЬНЫЕ ПОЛОСЫ ХАРАКТЕРИСТИК (H2H STAT BARS) -->
-        <div class="mt-8 bg-slate-950/60 p-6 rounded-3xl border border-slate-800">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-base font-black text-white flex items-center gap-2">
-              <i class="fa-solid fa-chart-simple text-amber-400"></i> Сравнение 6 характеристик 5х5
-            </h3>
-            <span class="text-xs text-slate-500">Золотой = Боец 1 · Циановый = Боец 2</span>
-          </div>
+        <!-- ############################################################## -->
+        <!-- РЕЖИМ 2: КОМАНДНАЯ БИТВА 5 НА 5 (МАТЧ ДВУХ ПЯТЁРОК)             -->
+        <!-- ############################################################## -->
+        <div id="battle-mode-team-section" class="relative z-10 hidden">
+          
+          <!-- ЗОНА ВЫБОРА КОМАНД / ПЯТЁРОК -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+            
+            <!-- КОМАНДА #1 (Золотые - Хозяева паркета) -->
+            <div class="lg:col-span-5 bg-slate-950 p-5 sm:p-6 rounded-3xl border-2 border-amber-500/40 relative shadow-xl flex flex-col justify-between">
+              <div class="absolute -top-3 left-6 px-3 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 text-[11px] font-black uppercase tracking-wider shadow">
+                🟡 Команда #1 (Хозяева)
+              </div>
 
-          <div class="space-y-3.5" id="h2h-bars-container">
-            <!-- Генерируется через JS -->
-          </div>
+              <div class="space-y-3 mt-2">
+                <div class="flex items-center gap-2">
+                  <button onclick="loadMyLineupToTeamBattle(1)" class="flex-1 py-1.5 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-people-group"></i> Моя пятёрка из вкладки
+                  </button>
+                  <select id="team-preset-select-1" onchange="loadPresetTeamToBattle(1, this.value)" class="flex-1 py-1.5 px-3 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-slate-200 focus:outline-none focus:border-amber-400">
+                    <option value="">Готовые команды...</option>
+                    <option value="zenit">ЛФК «Зенит» Мини</option>
+                    <option value="polynom">Полином Екатеринбург</option>
+                    <option value="solyanka">Солянка 5х5</option>
+                  </select>
+                </div>
 
-          <!-- Вердикт аналитика -->
-          <div class="mt-6 p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-slate-900 to-cyan-500/10 border border-slate-800 text-center">
-            <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">СКАУТСКИЙ ВЕРДИКТ</div>
-            <div id="h2h-verdict" class="text-sm font-black text-white">
-              <!-- Текст вердикта -->
+                <!-- Поиск команды 1 по 3 лигам -->
+                <div class="relative">
+                  <i class="fa-solid fa-shield-halved absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                  <input id="team-search-input-1" type="text" placeholder="Поиск команды 1 по 3 лигам..." oninput="handleTeamBattleSearch(1, this.value)"
+                    class="w-full bg-slate-900 border border-slate-700 focus:border-amber-400 rounded-xl pl-8 pr-8 py-2 text-xs text-white placeholder-slate-500 focus:outline-none transition">
+                  <button onclick="clearTeamBattleSearch(1)" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white text-xs">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                  <div id="team-search-results-1" class="hidden absolute top-full left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-slate-900 border border-amber-500/40 rounded-2xl shadow-2xl z-50 p-2 space-y-1 text-xs"></div>
+                </div>
+              </div>
+
+              <!-- Визитка команды 1 -->
+              <div class="mt-5 p-4 rounded-2xl bg-slate-900/90 border border-slate-800">
+                <div class="flex items-center justify-between gap-3 mb-3">
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <div id="team-1-badge" class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-xl shrink-0">⚽</div>
+                    <div class="min-w-0">
+                      <h4 id="team-1-name" class="text-base font-black text-white truncate">ЛФК «Зенит» Мини</h4>
+                      <div id="team-1-league" class="text-[10px] text-amber-400">Лига 5х5 (Екатеринбург)</div>
+                    </div>
+                  </div>
+                  <div class="px-2.5 py-1 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-black shrink-0">
+                    <span id="team-1-ovr">86</span> OVR
+                  </div>
+                </div>
+
+                <!-- Пятёрка игроков на поле -->
+                <div id="team-1-roster-preview" class="grid grid-cols-5 gap-1.5 text-center mt-2">
+                  <!-- Генерируется через JS -->
+                </div>
+
+                <!-- Сила линий -->
+                <div class="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-800/80 text-[10px] text-center">
+                  <div class="bg-slate-950 p-1.5 rounded-lg border border-slate-800">
+                    <span class="text-slate-500 block">Атака</span>
+                    <span id="team-1-att-rating" class="font-black text-amber-400">89</span>
+                  </div>
+                  <div class="bg-slate-950 p-1.5 rounded-lg border border-slate-800">
+                    <span class="text-slate-500 block">Оборона</span>
+                    <span id="team-1-def-rating" class="font-black text-emerald-400">82</span>
+                  </div>
+                  <div class="bg-slate-950 p-1.5 rounded-lg border border-slate-800">
+                    <span class="text-slate-500 block">Вратарь</span>
+                    <span id="team-1-gk-rating" class="font-black text-sky-400">85</span>
+                  </div>
+                </div>
+              </div>
+
             </div>
+
+            <!-- ЦЕНТР: VS & КНОПКА СТАРТА МАТЧА 5х5 -->
+            <div class="lg:col-span-2 flex flex-col items-center justify-center gap-4 py-4 lg:py-0">
+              <div class="w-16 h-16 rounded-3xl bg-gradient-to-br from-amber-500/20 via-rose-500/20 to-cyan-500/20 border-2 border-emerald-500/40 flex items-center justify-center text-xl font-black text-white shadow-2xl">
+                ⚽
+              </div>
+              
+              <button onclick="startTeam5x5Match()" id="team-fight-btn" class="w-full py-4 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-black text-xs sm:text-sm uppercase tracking-wider transition-all transform hover:scale-105 shadow-xl shadow-emerald-500/30 flex flex-col items-center justify-center gap-1">
+                <span class="flex items-center gap-1.5"><i class="fa-solid fa-whistle text-slate-950"></i> СВИСТОК НА МАТЧ!</span>
+                <span class="text-[10px] normal-case opacity-90 font-bold">2 тайма по 25 мин (5х5)</span>
+              </button>
+              <div class="text-[10px] text-slate-500 font-bold uppercase tracking-widest text-center">Futsal Match 5x5</div>
+            </div>
+
+            <!-- КОМАНДА #2 (Циановые - Гости паркета) -->
+            <div class="lg:col-span-5 bg-slate-950 p-5 sm:p-6 rounded-3xl border-2 border-cyan-500/40 relative shadow-xl flex flex-col justify-between">
+              <div class="absolute -top-3 right-6 px-3 py-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-cyan-600 text-slate-950 text-[11px] font-black uppercase tracking-wider shadow">
+                🔵 Команда #2 (Гости)
+              </div>
+
+              <div class="space-y-3 mt-2">
+                <div class="flex items-center gap-2">
+                  <select id="team-preset-select-2" onchange="loadPresetTeamToBattle(2, this.value)" class="flex-1 py-1.5 px-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-xs font-bold text-cyan-300 focus:outline-none">
+                    <option value="">Готовые команды...</option>
+                    <option value="athletic">ФК «Атлетик»</option>
+                    <option value="spartak">Спартак 5х5</option>
+                    <option value="dinamo">Динамо Футзал</option>
+                  </select>
+                </div>
+
+                <!-- Поиск команды 2 по 3 лигам -->
+                <div class="relative">
+                  <i class="fa-solid fa-shield-halved absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                  <input id="team-search-input-2" type="text" placeholder="Поиск команды 2 по 3 лигам..." oninput="handleTeamBattleSearch(2, this.value)"
+                    class="w-full bg-slate-900 border border-slate-700 focus:border-cyan-400 rounded-xl pl-8 pr-8 py-2 text-xs text-white placeholder-slate-500 focus:outline-none transition">
+                  <button onclick="clearTeamBattleSearch(2)" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white text-xs">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                  <div id="team-search-results-2" class="hidden absolute top-full left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-slate-900 border border-cyan-500/40 rounded-2xl shadow-2xl z-50 p-2 space-y-1 text-xs"></div>
+                </div>
+              </div>
+
+              <!-- Визитка команды 2 -->
+              <div class="mt-5 p-4 rounded-2xl bg-slate-900/90 border border-slate-800">
+                <div class="flex items-center justify-between gap-3 mb-3">
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <div id="team-2-badge" class="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-xl shrink-0">🛡️</div>
+                    <div class="min-w-0">
+                      <h4 id="team-2-name" class="text-base font-black text-white truncate">ФК «Атлетик»</h4>
+                      <div id="team-2-league" class="text-[10px] text-cyan-400">Лига Старт (Екатеринбург)</div>
+                    </div>
+                  </div>
+                  <div class="px-2.5 py-1 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-xs font-black shrink-0">
+                    <span id="team-2-ovr">84</span> OVR
+                  </div>
+                </div>
+
+                <!-- Пятёрка игроков на поле -->
+                <div id="team-2-roster-preview" class="grid grid-cols-5 gap-1.5 text-center mt-2">
+                  <!-- Генерируется через JS -->
+                </div>
+
+                <!-- Сила линий -->
+                <div class="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-800/80 text-[10px] text-center">
+                  <div class="bg-slate-950 p-1.5 rounded-lg border border-slate-800">
+                    <span class="text-slate-500 block">Атака</span>
+                    <span id="team-2-att-rating" class="font-black text-amber-400">83</span>
+                  </div>
+                  <div class="bg-slate-950 p-1.5 rounded-lg border border-slate-800">
+                    <span class="text-slate-500 block">Оборона</span>
+                    <span id="team-2-def-rating" class="font-black text-emerald-400">87</span>
+                  </div>
+                  <div class="bg-slate-950 p-1.5 rounded-lg border border-slate-800">
+                    <span class="text-slate-500 block">Вратарь</span>
+                    <span id="team-2-gk-rating" class="font-black text-sky-400">83</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
           </div>
+
+          <!-- ТАБЛО И ПРЯМАЯ ТРАНСЛЯЦИЯ МАТЧА 5х5 -->
+          <div id="team-match-arena" class="mt-8 bg-slate-950/90 border-2 border-emerald-500/40 rounded-3xl p-6 relative overflow-hidden hidden shadow-2xl">
+            <div class="flex flex-col sm:flex-row items-center justify-between pb-4 border-b border-slate-800 gap-4">
+              <div class="flex items-center gap-3">
+                <span class="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></span>
+                <h3 class="text-lg font-black text-white flex items-center gap-2">
+                  ⏱️ ПРЯМОЙ ЭФИР МАТЧА 5х5: <span id="team-match-minute" class="text-emerald-400">1-й тайм</span>
+                </h3>
+              </div>
+              
+              <!-- Большое табло матча -->
+              <div class="flex items-center gap-4 bg-slate-900 px-6 py-2.5 rounded-2xl border border-slate-700">
+                <span id="match-score-t1-name" class="text-xs sm:text-sm font-black text-amber-400 truncate max-w-[120px]">Команда 1</span>
+                <span class="text-3xl font-black text-white tracking-widest"><span id="match-score-t1" class="text-amber-400">0</span> : <span id="match-score-t2" class="text-cyan-400">0</span></span>
+                <span id="match-score-t2-name" class="text-xs sm:text-sm font-black text-cyan-400 truncate max-w-[120px]">Команда 2</span>
+              </div>
+            </div>
+
+            <!-- Статистика фолов в тайме (накопление до 6 фолов → дабл-пенальти) -->
+            <div class="flex items-center justify-between mt-4 px-4 py-2 rounded-xl bg-slate-900/60 border border-slate-800 text-xs font-bold text-slate-400">
+              <div class="flex items-center gap-2">
+                <span>Фолы хозяев:</span>
+                <span id="team-1-fouls" class="text-yellow-400 font-black">0 / 5</span>
+              </div>
+              <div class="text-[11px] text-slate-500 uppercase">6-й фол = 10-метровый дабл-пенальти</div>
+              <div class="flex items-center gap-2">
+                <span>Фолы гостей:</span>
+                <span id="team-2-fouls" class="text-yellow-400 font-black">0 / 5</span>
+              </div>
+            </div>
+
+            <!-- Хроника опасных моментов матча -->
+            <div id="team-match-events-container" class="mt-6 space-y-2.5 max-h-96 overflow-y-auto pr-1"></div>
+
+            <!-- Итоги матча и MVP встречи -->
+            <div id="team-match-summary" class="mt-6 p-6 rounded-2xl bg-gradient-to-r from-amber-500/10 via-slate-900 to-cyan-500/10 border border-slate-700 text-center hidden"></div>
+          </div>
+
+          <!-- СРАВНЕНИЕ КОМАНДНЫХ РЕЙТИНГОВ -->
+          <div class="mt-8 bg-slate-950/60 p-6 rounded-3xl border border-slate-800">
+            <h3 class="text-base font-black text-white mb-4 flex items-center gap-2">
+              <i class="fa-solid fa-chart-line text-emerald-400"></i> Аналитика противостояния стилей 5х5
+            </h3>
+            <div id="team-bars-container" class="space-y-3.5"></div>
+          </div>
+
         </div>
 
       </div>

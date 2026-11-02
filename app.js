@@ -1253,17 +1253,57 @@ function exportCard() {
 }
 
 // =============================================================================
-// ФУТЗАЛЬНАЯ ДУЭЛЬ: БИТВА 1 НА 1 (H2H ARENA)
+// БИТВЫ НА ПАРКЕТЕ: 1 НА 1 (КОРОЛЬ КОРОБКИ / PANNA) И 5 НА 5 (МАТЧ ПЯТЁРОК)
 // =============================================================================
+let currentBattleMode = "solo"; // "solo" | "team"
+
 let duelFighter1 = null;
 let duelFighter2 = null;
 let duelSearchResults1 = [];
 let duelSearchResults2 = [];
 let duelSearchTimeout1 = null;
 let duelSearchTimeout2 = null;
-let isDuelFighting = false;
+let isSoloFighting = false;
 
-// Расчет всех 6 характеристик и OVR для произвольного игрока
+// Состояние командной битвы 5х5
+let currentBattleTeam1 = null;
+let currentBattleTeam2 = null;
+let teamSearchResults1 = [];
+let teamSearchResults2 = [];
+let teamSearchTimeout1 = null;
+let teamSearchTimeout2 = null;
+let isTeamMatchRunning = false;
+
+// -----------------------------------------------------------------------------
+// Переключение режима боя: 1 на 1 vs 5 на 5
+// -----------------------------------------------------------------------------
+function switchBattleMode(mode) {
+  currentBattleMode = mode;
+  const soloBtn = document.getElementById("battle-mode-btn-solo");
+  const teamBtn = document.getElementById("battle-mode-btn-team");
+  const soloSec = document.getElementById("battle-mode-solo-section");
+  const teamSec = document.getElementById("battle-mode-team-section");
+
+  if (!soloBtn || !teamBtn || !soloSec || !teamSec) return;
+
+  if (mode === "solo") {
+    soloBtn.className = "flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-lg shadow-amber-500/20";
+    teamBtn.className = "flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 text-slate-400 hover:text-white";
+    soloSec.classList.remove("hidden");
+    teamSec.classList.add("hidden");
+    initDuelArena();
+  } else {
+    teamBtn.className = "flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-950 shadow-lg shadow-emerald-500/20";
+    soloBtn.className = "flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 text-slate-400 hover:text-white";
+    teamSec.classList.remove("hidden");
+    soloSec.classList.add("hidden");
+    initTeamBattleArena();
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Расчет футзальных характеристик любого игрока (FIN, VIS, IMP, DISC, EXP, THR, OVR)
+// -----------------------------------------------------------------------------
 function calculateDetailedPlayerStats(p) {
   if (!p) return { fin: 50, vis: 50, imp: 50, disc: 70, exp: 50, thr: 50, ovr: 50, matches: 0, goals: 0, assists: 0, yc: 0, rc: 0, mvp: 0 };
   const matches = Math.max(1, parseInt(p.matches || p.total_matches) || 1);
@@ -1325,6 +1365,9 @@ function getCardPlayerObject() {
   };
 }
 
+// =============================================================================
+// РЕЖИМ 1: ОДИНОЧНАЯ ДУЭЛЬ 1 НА 1 (КОРОЛЬ КОРОБКИ / PANNA)
+// =============================================================================
 async function initDuelArena() {
   await populateDuelFavoritesDropdowns();
 
@@ -1334,16 +1377,8 @@ async function initDuelArena() {
   if (!duelFighter2) {
     const p = presets.ala;
     duelFighter2 = {
-      name: p.name,
-      team: p.team,
-      position: p.pos,
-      avatar: p.avatar,
-      matches: p.matches,
-      goals: p.goals,
-      assists: p.assists,
-      yellow_cards: p.yc,
-      red_cards: p.rc,
-      mvp_count: p.mvp
+      name: p.name, team: p.team, position: p.pos, avatar: p.avatar,
+      matches: p.matches, goals: p.goals, assists: p.assists, yellow_cards: p.yc, red_cards: p.rc, mvp_count: p.mvp
     };
   }
 
@@ -1413,16 +1448,8 @@ function loadPresetToDuel(slot, key) {
   if (!key || !presets[key]) return;
   const p = presets[key];
   const fighter = {
-    name: p.name,
-    team: p.team,
-    position: p.pos,
-    avatar: p.avatar,
-    matches: p.matches,
-    goals: p.goals,
-    assists: p.assists,
-    yellow_cards: p.yc,
-    red_cards: p.rc,
-    mvp_count: p.mvp
+    name: p.name, team: p.team, position: p.pos, avatar: p.avatar,
+    matches: p.matches, goals: p.goals, assists: p.assists, yellow_cards: p.yc, red_cards: p.rc, mvp_count: p.mvp
   };
 
   if (slot === 1) duelFighter1 = fighter;
@@ -1434,37 +1461,49 @@ function loadPresetToDuel(slot, key) {
 }
 
 function swapDuelPlayers() {
-  const temp = duelFighter1;
-  duelFighter1 = duelFighter2;
-  duelFighter2 = temp;
-  updateDuelDisplay();
-  renderDuelComparisonBars();
-  resetDuelFightArena();
+  if (currentBattleMode === "solo") {
+    const temp = duelFighter1;
+    duelFighter1 = duelFighter2;
+    duelFighter2 = temp;
+    updateDuelDisplay();
+    renderDuelComparisonBars();
+    resetDuelFightArena();
+  } else {
+    const tempT = currentBattleTeam1;
+    currentBattleTeam1 = currentBattleTeam2;
+    currentBattleTeam2 = tempT;
+    updateTeamBattleDisplay();
+    const arena = document.getElementById("team-match-arena");
+    if (arena) arena.classList.add("hidden");
+  }
 }
 
 function resetDuelArena() {
-  duelFighter1 = getCardPlayerObject();
-  const p = presets.ala;
-  duelFighter2 = {
-    name: p.name, team: p.team, position: p.pos, avatar: p.avatar,
-    matches: p.matches, goals: p.goals, assists: p.assists, yellow_cards: p.yc, red_cards: p.rc, mvp_count: p.mvp
-  };
-  clearDuelSearch(1);
-  clearDuelSearch(2);
-  updateDuelDisplay();
-  renderDuelComparisonBars();
-  resetDuelFightArena();
+  if (currentBattleMode === "solo") {
+    duelFighter1 = getCardPlayerObject();
+    const p = presets.ala;
+    duelFighter2 = {
+      name: p.name, team: p.team, position: p.pos, avatar: p.avatar,
+      matches: p.matches, goals: p.goals, assists: p.assists, yellow_cards: p.yc, red_cards: p.rc, mvp_count: p.mvp
+    };
+    clearDuelSearch(1);
+    clearDuelSearch(2);
+    updateDuelDisplay();
+    renderDuelComparisonBars();
+    resetDuelFightArena();
+  } else {
+    initTeamBattleArena();
+    clearTeamBattleSearch(1);
+    clearTeamBattleSearch(2);
+  }
 }
 
 function resetDuelFightArena() {
   const arena = document.getElementById("duel-battle-arena");
   if (arena) arena.classList.add("hidden");
-  isDuelFighting = false;
+  isSoloFighting = false;
 }
 
-// -----------------------------------------------------------------------------
-// Живой поиск игроков для дуэли по всем 3 сайтам
-// -----------------------------------------------------------------------------
 function handleDuelSearch(slot, query) {
   const q = (query || "").trim();
   const resContainer = document.getElementById(`h2h-search-results-${slot}`);
@@ -1486,7 +1525,7 @@ function handleDuelSearch(slot, query) {
     try {
       const data = await fetchWithFallback(API_BASE + "/search?q=" + encodeURIComponent(q));
       if (!data || !data.results || data.results.length === 0) {
-        resContainer.innerHTML = '<div class="p-3 text-center text-slate-400 text-xs">Игрок не найден. Попробуйте только фамилию.</div>';
+        resContainer.innerHTML = '<div class="p-3 text-center text-slate-400 text-xs">Игрок не найден. Попробуйте фамилию.</div>';
         return;
       }
 
@@ -1577,14 +1616,12 @@ function clearDuelSearch(slot) {
   }
 }
 
-// Обновление визиток обоих дуэлянтов на экране
 function updateDuelDisplay() {
   if (!duelFighter1 || !duelFighter2) return;
 
   const s1 = calculateDetailedPlayerStats(duelFighter1);
   const s2 = calculateDetailedPlayerStats(duelFighter2);
 
-  // Боец 1
   document.getElementById("h2h-p1-img").src = duelFighter1.avatar || DEFAULT_AVATAR;
   document.getElementById("h2h-p1-name").innerText = duelFighter1.name;
   document.getElementById("h2h-p1-team").innerText = duelFighter1.team || "Без команды";
@@ -1595,7 +1632,6 @@ function updateDuelDisplay() {
   document.getElementById("h2h-p1-assists").innerText = s1.assists;
   document.getElementById("h2h-p1-yc").innerText = s1.yc;
 
-  // Боец 2
   document.getElementById("h2h-p2-img").src = duelFighter2.avatar || DEFAULT_AVATAR;
   document.getElementById("h2h-p2-name").innerText = duelFighter2.name;
   document.getElementById("h2h-p2-team").innerText = duelFighter2.team || "Без команды";
@@ -1607,7 +1643,6 @@ function updateDuelDisplay() {
   document.getElementById("h2h-p2-yc").innerText = s2.yc;
 }
 
-// Рендер сравнительных полос характеристик
 function renderDuelComparisonBars() {
   if (!duelFighter1 || !duelFighter2) return;
 
@@ -1615,13 +1650,13 @@ function renderDuelComparisonBars() {
   const s2 = calculateDetailedPlayerStats(duelFighter2);
 
   const categories = [
-    { label: "Киллер / Голы (FIN)", v1: s1.fin, v2: s2.fin, desc: "Опасность и хладнокровие перед чужими воротами" },
-    { label: "Плеймейкер / Ассисты (VIS)", v1: s1.vis, v2: s2.vis, desc: "Культура паса, видение паркета и создание моментов" },
-    { label: "Влияние на игру (IMP)", v1: s1.imp, v2: s2.imp, desc: "Суммарный вклад в результат (Гол + Пас за тур)" },
-    { label: "Дисциплина (DISC)", v1: s1.disc, v2: s2.disc, desc: "Чистота отбора, минимум фолов и желтых карточек" },
-    { label: "Опыт и карьера (EXP)", v1: s1.exp, v2: s2.exp, desc: "Наигранные матчи и адаптация к турнирному накалу" },
-    { label: "Двусторонняя угроза (THR)", v1: s1.thr, v2: s2.thr, desc: "Умение одновременно и забивать, и ассистировать" },
-    { label: "Общий футзальный рейтинг (OVR)", v1: s1.ovr, v2: s2.ovr, desc: "Интегральный уровень игрока в формате 5х5" }
+    { label: "Киллер / Голы (FIN)", v1: s1.fin, v2: s2.fin, desc: "Опасность и реализация в штрафной" },
+    { label: "Плеймейкер / Ассисты (VIS)", v1: s1.vis, v2: s2.vis, desc: "Культура паса и видение паркета" },
+    { label: "Влияние на игру (IMP)", v1: s1.imp, v2: s2.imp, desc: "Суммарный атакующий вклад (Г+П)" },
+    { label: "Дисциплина (DISC)", v1: s1.disc, v2: s2.disc, desc: "Чистота отбора без фолов и карточек" },
+    { label: "Опыт и карьера (EXP)", v1: s1.exp, v2: s2.exp, desc: "Наигранные матчи в лигах" },
+    { label: "Двусторонняя угроза (THR)", v1: s1.thr, v2: s2.thr, desc: "Умение одновременно и забивать, и отдавать" },
+    { label: "Общий рейтинг (OVR)", v1: s1.ovr, v2: s2.ovr, desc: "Интегральный уровень игрока 5х5" }
   ];
 
   const container = document.getElementById("h2h-bars-container");
@@ -1676,21 +1711,21 @@ function renderDuelComparisonBars() {
   const verdictEl = document.getElementById("h2h-verdict");
   if (verdictEl) {
     if (p1Wins > p2Wins) {
-      verdictEl.innerHTML = `🔥 По сумме качеств доминирует <b>${duelFighter1.name}</b> (выиграл <b>${p1Wins} из ${categories.length}</b> категорий). Значительно опаснее в атакующей фазе!`;
+      verdictEl.innerHTML = `🔥 По сумме качеств лидирует <b>${duelFighter1.name}</b> (выиграл <b>${p1Wins} из ${categories.length}</b> категорий). Значительно опаснее в атаке!`;
     } else if (p2Wins > p1Wins) {
-      verdictEl.innerHTML = `⚡ По сумме качеств сильнее <b>${duelFighter2.name}</b> (выиграл <b>${p2Wins} из ${categories.length}</b> категорий). Диктует темп и строже в деталях!`;
+      verdictEl.innerHTML = `⚡ По сумме качеств сильнее <b>${duelFighter2.name}</b> (выиграл <b>${p2Wins} из ${categories.length}</b> категорий). Строже играет по позиции!`;
     } else {
-      verdictEl.innerHTML = `🤝 <b>Идеальный баланс сил!</b> Игроки абсолютно равны (по ${p1Wins} побед). Исход матча решит одна ошибка или фарт.`;
+      verdictEl.innerHTML = `🤝 <b>Идеальный баланс сил!</b> Игроки абсолютно равны (по ${p1Wins} побед).`;
     }
   }
 }
 
 // -----------------------------------------------------------------------------
-// 🔥 СИМУЛЯЦИЯ БИТВЫ НА ПАРКЕТЕ (5 РАУНДОВ С КОММЕНТАРИЕМ И РАНДОМОМ)
+// 🔥 1 НА 1: ПАННА-ДУЭЛЬ («КОРОЛЬ КОРОБКИ») С ВОЗМОЖНОСТЬЮ МГНОВЕННОГО НОКАУТА
 // -----------------------------------------------------------------------------
-async function startDuelFight() {
-  if (isDuelFighting || !duelFighter1 || !duelFighter2) return;
-  isDuelFighting = true;
+async function startSoloPannaFight() {
+  if (isSoloFighting || !duelFighter1 || !duelFighter2) return;
+  isSoloFighting = true;
 
   const arena = document.getElementById("duel-battle-arena");
   const roundsContainer = document.getElementById("duel-rounds-container");
@@ -1710,7 +1745,7 @@ async function startDuelFight() {
   scoreP2El.innerText = "0";
   scoreP1Name.innerText = duelFighter1.name.split(' ')[0];
   scoreP2Name.innerText = duelFighter2.name.split(' ')[0];
-  liveTitle.innerText = `${duelFighter1.name} против ${duelFighter2.name}`;
+  liveTitle.innerText = `Панна-битва: ${duelFighter1.name} vs ${duelFighter2.name}`;
 
   arena.scrollIntoView({ behavior: "smooth", block: "center" });
 
@@ -1720,172 +1755,659 @@ async function startDuelFight() {
   const roundsConfig = [
     {
       num: 1,
-      name: "🎯 Снайперский выход 1 на 1 (FIN)",
-      icon: "fa-bullseye",
-      base1: s1.fin,
-      base2: s2.fin,
-      descP1Win: `${duelFighter1.name} на ложном замахе подошвой убирает вратаря и нежно катит в пустые!`,
-      descP2Win: `${duelFighter2.name} хлёстко бьёт с носка в самую девятку без шансов для ленточки!`,
-      descDraw: `Штанга! Оба бомбардира зарядили в каркас ворот — ничья в раунде.`
+      name: "👟 Проброс между ног (Панна-попытка)",
+      icon: "fa-socks",
+      base1: Math.round((s1.vis + s1.thr) / 2),
+      base2: Math.round((s2.vis + s2.thr) / 2),
+      isPannaRound: true,
+      descP1Win: `${duelFighter1.name} раскачивает подошвой, ловит защитника на широком шаге и пробрасывает точно между ног! Чистый футзальный стиль.`,
+      descP2Win: `${duelFighter2.name} молниеносно делает эластико и пускает мяч в «домик»! Трибуны ревут от восторга.`,
+      descDraw: `Плотная стойка на полусогнутых — ни один не позволил пустить мяч себе между ног.`
     },
     {
       num: 2,
-      name: "🧙‍♂️ Дриблинг и пас вразрез (VIS)",
-      icon: "fa-wand-magic-sparkles",
-      base1: s1.vis,
-      base2: s2.vis,
-      descP1Win: `${duelFighter1.name} видит открывание на дальней штанге и шьёт ювелирную передачу шведкой между троих!`,
-      descP2Win: `${duelFighter2.name} качает защитника, финтит подошвой и выкатывает идеальный пас на ход!`,
-      descDraw: `Плотнейшая опека — оба распасовщика заблокированы защитниками.`
+      name: "🎯 Удар с носка в микро-ворота",
+      icon: "fa-bullseye",
+      base1: s1.fin,
+      base2: s2.fin,
+      isPannaRound: false,
+      descP1Win: `${duelFighter1.name} на замахе убирает под рабочую ногу и филигранно шьёт с пыра в самый угол микро-ворот!`,
+      descP2Win: `${duelFighter2.name} без раздумий вколачивает с разворота низом рикошетом от штанги!`,
+      descDraw: `Оба удара сотрясают штанги микро-ворот — ничья по очкам.`
     },
     {
       num: 3,
-      name: "🧱 Стык у борта и прессинг (DISC)",
+      name: "🧱 Качели на подошве и игра корпусом у сетки",
       icon: "fa-shield-halved",
-      base1: s1.disc,
-      base2: s2.disc,
-      descP1Win: `${duelFighter1.name} образцово ставит корпус у аута, чисто забирает мяч без свистка арбитра!`,
-      descP2Win: `${duelFighter2.name} совершает идеальный чистый подкат в мяч и не привозит опасный фол!`,
-      descDraw: `Борьба кость в кость у бровки! Судья держит свисток при себе — игра продолжается.`
-    },
-    {
-      num: 4,
-      name: "⚡ Двусторонняя угроза (THR)",
-      icon: "fa-bolt-lightning",
-      base1: s1.thr,
-      base2: s2.thr,
-      descP1Win: `${duelFighter1.name} запутал защитников: показал передачу, а сам вонзил с носка под перекладину!`,
-      descP2Win: `${duelFighter2.name} взрывает фланг: и обыграл двоих, и положил мяч в дальний угол!`,
-      descDraw: `Оба универсала действовали молниеносно, вратари совершают спасения тура!`
-    },
-    {
-      num: 5,
-      name: "👑 Валидольная 49-я минута (EXP & OVR)",
-      icon: "fa-trophy",
-      base1: Math.round(s1.exp * 0.5 + s1.ovr * 0.5),
-      base2: Math.round(s2.exp * 0.5 + s2.ovr * 0.5),
-      descP1Win: `СИРЕНА! На последних 5 секундах ${duelFighter1.name} на хладнокровии вколачивает решающий мяч!`,
-      descP2Win: `СИРЕНА! Колоссальный опыт: ${duelFighter2.name} выгрызает победу в падении под рёв трибун!`,
-      descDraw: `Финальный свисток! Сумасшедшая концовка, никто не дрогнул под прессингом сирены.`
+      base1: Math.round(s1.thr * 0.6 + s1.disc * 0.4),
+      base2: Math.round(s2.thr * 0.6 + s2.disc * 0.4),
+      isPannaRound: false,
+      descP1Win: `${duelFighter1.name} прижимает мяч подошвой к паркету, ставит мощный корпус и выбивает победное очко!`,
+      descP2Win: `${duelFighter2.name} на запредельном балансе обкрадывает оппонента у сетки коробки и закатывает в пустые!`,
+      descDraw: `Жесточайшая борьба плечо в плечо у ограждения клетки — время раунда истекло.`
     }
   ];
 
   let p1Score = 0;
   let p2Score = 0;
+  let instantKnockout = false;
+  let knockoutWinner = 0;
 
   for (let i = 0; i < roundsConfig.length; i++) {
-    await new Promise(r => setTimeout(r, 650));
+    await new Promise(r => setTimeout(r, 700));
 
     const r = roundsConfig[i];
-    // Футзальный бросок кубика (от -7 до +7 к характеристике)
     const roll1 = Math.floor(Math.random() * 15) - 7;
     const roll2 = Math.floor(Math.random() * 15) - 7;
     const total1 = Math.max(15, r.base1 + roll1);
     const total2 = Math.max(15, r.base2 + roll2);
 
-    let roundWinner = 0; // 0 = draw, 1 = p1, 2 = p2
+    let roundWinner = 0;
     let roundText = r.descDraw;
     let badgeHtml = '<span class="px-2 py-0.5 rounded text-[10px] font-black bg-slate-800 text-slate-400">Ничья</span>';
+
+    const diff = Math.abs(total1 - total2);
 
     if (total1 > total2) {
       roundWinner = 1;
       p1Score++;
       roundText = r.descP1Win;
-      badgeHtml = `<span class="px-2 py-0.5 rounded text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40">+${total1 - total2} за ${duelFighter1.name.split(' ')[0]}</span>`;
+      badgeHtml = `<span class="px-2 py-0.5 rounded text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40">+${diff} за ${duelFighter1.name.split(' ')[0]}</span>`;
+      
+      // Проверка на мгновенный нокаут панны
+      if (r.isPannaRound && diff >= 12) {
+        instantKnockout = true;
+        knockoutWinner = 1;
+        p1Score = 3;
+        badgeHtml = `<span class="px-2.5 py-0.5 rounded text-[10px] font-black bg-rose-500 text-white animate-pulse">💥 PANNA KNOCKOUT!</span>`;
+        roundText = `💥 ПА-А-АННА! ${duelFighter1.name} совершает невозможное: идеальный проброс между ног с полным контролем мяча! МГНОВЕННЫЙ НОКАУТ!`;
+      }
     } else if (total2 > total1) {
       roundWinner = 2;
       p2Score++;
       roundText = r.descP2Win;
-      badgeHtml = `<span class="px-2 py-0.5 rounded text-[10px] font-black bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">+${total2 - total1} за ${duelFighter2.name.split(' ')[0]}</span>`;
+      badgeHtml = `<span class="px-2 py-0.5 rounded text-[10px] font-black bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">+${diff} за ${duelFighter2.name.split(' ')[0]}</span>`;
+      
+      if (r.isPannaRound && diff >= 12) {
+        instantKnockout = true;
+        knockoutWinner = 2;
+        p2Score = 3;
+        badgeHtml = `<span class="px-2.5 py-0.5 rounded text-[10px] font-black bg-rose-500 text-white animate-pulse">💥 PANNA KNOCKOUT!</span>`;
+        roundText = `💥 ПА-А-АННА! ${duelFighter2.name} поймал соперника на противоходе и элегантно пустил мяч в домик! МГНОВЕННЫЙ НОКАУТ В ПЕРВОМ РАУНДЕ!`;
+      }
     }
 
     scoreP1El.innerText = p1Score;
     scoreP2El.innerText = p2Score;
 
     const roundEl = document.createElement("div");
-    roundEl.className = "duel-round-card bg-slate-900/90 border " + (roundWinner === 1 ? 'border-amber-500/50 bg-gradient-to-r from-amber-500/10 via-slate-900 to-transparent' : (roundWinner === 2 ? 'border-cyan-500/50 bg-gradient-to-r from-transparent via-slate-900 to-cyan-500/10' : 'border-slate-800')) + " p-3.5 rounded-2xl";
+    roundEl.className = "duel-round-card bg-slate-900/90 border " + (roundWinner === 1 ? 'border-amber-500/50' : (roundWinner === 2 ? 'border-cyan-500/50' : 'border-slate-800')) + " p-3.5 rounded-2xl";
     roundEl.innerHTML = `
       <div class="flex items-center justify-between text-xs font-bold mb-1">
         <span class="text-white flex items-center gap-1.5"><i class="fa-solid ${r.icon} text-amber-400"></i> Раунд ${r.num}: ${r.name}</span>
         ${badgeHtml}
       </div>
       <div class="flex items-center justify-between text-[11px] text-slate-400 mb-2">
-        <span class="${roundWinner === 1 ? 'text-amber-300 font-black' : ''}">${duelFighter1.name.split(' ')[0]}: стат ${r.base1} ${roll1 >= 0 ? '+' : ''}${roll1} = <b>${total1}</b></span>
-        <span class="${roundWinner === 2 ? 'text-cyan-300 font-black' : ''}">${duelFighter2.name.split(' ')[0]}: стат ${r.base2} ${roll2 >= 0 ? '+' : ''}${roll2} = <b>${total2}</b></span>
+        <span class="${roundWinner === 1 ? 'text-amber-300 font-black' : ''}">${duelFighter1.name.split(' ')[0]}: ${total1}</span>
+        <span class="${roundWinner === 2 ? 'text-cyan-300 font-black' : ''}">${duelFighter2.name.split(' ')[0]}: ${total2}</span>
       </div>
-      <p class="text-xs text-slate-200 italic bg-slate-950/70 p-2 rounded-xl border border-slate-800/80">«${roundText}»</p>
+      <p class="text-xs text-slate-200 italic bg-slate-950/70 p-2.5 rounded-xl border border-slate-800/80">«${roundText}»</p>
     `;
     roundsContainer.appendChild(roundEl);
+
+    if (instantKnockout) break;
   }
 
-  // Финальная церемония победителя
   await new Promise(r => setTimeout(r, 600));
 
   ceremony.classList.remove("hidden");
   ceremony.scrollIntoView({ behavior: "smooth", block: "nearest" });
 
-  const penalties = [
-    "Проигравший покупает 5 литров воды на команду и моет командные манишки!",
-    "Проигравший идёт в ворота на следующей предматчевой двухсторонке!",
-    "Победитель заказывает пиццу за счёт проигравшего и бьёт все 10-метровые пенальти в сезоне!",
-    "Проигравший собирает все мячи и фишки после тренировки целую неделю!",
-    "Победитель объявляется официальным Батей паркета с пожизненным уважением в раздевалке!"
+  const streetPenalties = [
+    "Проигравший покупает 2 бутылки колы и собирает мячи после тренировки!",
+    "Проигравший встаёт в ворота на следующей игре и ловит пушечные удары с 6 метров!",
+    "Победитель объявляется официальным Королём Коробки с пожизненным респектом во дворе!",
+    "Проигравший делает 20 отжиманий прямо на паркете под одобрительный гул команды!"
   ];
-  const randPenalty = penalties[Math.floor(Math.random() * penalties.length)];
+  const pText = streetPenalties[Math.floor(Math.random() * streetPenalties.length)];
 
   if (p1Score > p2Score) {
     ceremony.innerHTML = `
-      <div class="text-4xl mb-2">🏆👑</div>
-      <h4 class="text-xl font-black text-amber-400 mb-1">ПОБЕДИТЕЛЬ ДУЭЛИ: ${duelFighter1.name.toUpperCase()}!</h4>
-      <p class="text-xs font-bold text-white mb-3">Счёт матча: <span class="text-amber-400 text-lg">${p1Score}</span> : <span class="text-cyan-400 text-lg">${p2Score}</span></p>
+      <div class="text-4xl mb-2">👑🏆</div>
+      <h4 class="text-xl font-black text-amber-400 mb-1">КОРОЛЬ КОРОБКИ: ${duelFighter1.name.toUpperCase()}!</h4>
+      <p class="text-xs font-bold text-white mb-3">${instantKnockout ? '⚡ ПОБЕДА ЧИСТЫМ PANNA-НОКАУТОМ!' : `Счёт по раундам: <span class="text-amber-400 text-lg">${p1Score}</span> : <span class="text-cyan-400 text-lg">${p2Score}</span>`}</p>
       <div class="inline-block p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs font-semibold mb-4 max-w-lg">
-        ⚽ <b>Футзальный приговор:</b> ${randPenalty}
+        👟 <b>Уличный приговор:</b> ${pText}
       </div>
       <div>
-        <button onclick="startDuelFight()" class="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow">
-          <i class="fa-solid fa-rotate-right mr-1"></i> Реванш (Сыграть снова)
+        <button onclick="startSoloPannaFight()" class="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow">
+          <i class="fa-solid fa-rotate-right mr-1"></i> Реванш на коробке
         </button>
       </div>
     `;
   } else if (p2Score > p1Score) {
     ceremony.innerHTML = `
-      <div class="text-4xl mb-2">🏆👑</div>
-      <h4 class="text-xl font-black text-cyan-400 mb-1">ПОБЕДИТЕЛЬ ДУЭЛИ: ${duelFighter2.name.toUpperCase()}!</h4>
-      <p class="text-xs font-bold text-white mb-3">Счёт матча: <span class="text-amber-400 text-lg">${p1Score}</span> : <span class="text-cyan-400 text-lg">${p2Score}</span></p>
+      <div class="text-4xl mb-2">👑🏆</div>
+      <h4 class="text-xl font-black text-cyan-400 mb-1">КОРОЛЬ КОРОБКИ: ${duelFighter2.name.toUpperCase()}!</h4>
+      <p class="text-xs font-bold text-white mb-3">${instantKnockout ? '⚡ ПОБЕДА ЧИСТЫМ PANNA-НОКАУТОМ!' : `Счёт по раундам: <span class="text-amber-400 text-lg">${p1Score}</span> : <span class="text-cyan-400 text-lg">${p2Score}</span>`}</p>
       <div class="inline-block p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-200 text-xs font-semibold mb-4 max-w-lg">
-        ⚽ <b>Футзальный приговор:</b> ${randPenalty}
+        👟 <b>Уличный приговор:</b> ${pText}
       </div>
       <div>
-        <button onclick="startDuelFight()" class="px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow">
-          <i class="fa-solid fa-rotate-right mr-1"></i> Реванш (Сыграть снова)
+        <button onclick="startSoloPannaFight()" class="px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow">
+          <i class="fa-solid fa-rotate-right mr-1"></i> Реванш на коробке
         </button>
       </div>
     `;
   } else {
     ceremony.innerHTML = `
       <div class="text-4xl mb-2">🤝⚽</div>
-      <h4 class="text-xl font-black text-white mb-1">БОЕВАЯ НИЧЬЯ: ${p1Score} : ${p2Score}!</h4>
-      <p class="text-xs text-slate-400 mb-3">Паркет не смог определить лучшего — оба дуэлянта показали феноменальный футзал.</p>
-      <div class="inline-block p-3 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 text-xs font-semibold mb-4">
-        Оба игрока делят звание лучших игроков тура и скидываются пополам на аренду зала!
-      </div>
+      <h4 class="text-xl font-black text-white mb-1">НИЧЬЯ НА КОРОБКЕ: ${p1Score} : ${p2Score}!</h4>
+      <p class="text-xs text-slate-400 mb-3">Оба дриблера сохранили честь коробки. Никто не уступил ни сантиметра.</p>
       <div>
-        <button onclick="startDuelFight()" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-cyan-500 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow">
-          <i class="fa-solid fa-rotate-right mr-1"></i> Серия пенальти (Реванш)
+        <button onclick="startSoloPannaFight()" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-cyan-500 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow">
+          <i class="fa-solid fa-rotate-right mr-1"></i> Золотой гол (Реванш)
         </button>
       </div>
     `;
   }
 
-  isDuelFighting = false;
+  isSoloFighting = false;
 }
 
-// Псевдоним для совместимости
+// Псевдоним старого метода
+function startDuelFight() {
+  startSoloPannaFight();
+}
+
+
+// =============================================================================
+// РЕЖИМ 2: КОМАНДНАЯ БИТВА 5 НА 5 (МАТЧ ДВУХ ПЯТЁРОК)
+// =============================================================================
+
+const PRESET_TEAMS = {
+  zenit: {
+    name: "ЛФК «Зенит» Мини",
+    league: "Лига 5х5 (Екатеринбург)",
+    badge: "⚡",
+    players: [
+      { name: "Иван Петров", position: "PIV", goals: 22, assists: 9, matches: 14, yellow_cards: 3, avatar: DEFAULT_AVATAR },
+      { name: "Артем Воронин", position: "ALA", goals: 11, assists: 18, matches: 13, yellow_cards: 1, avatar: DEFAULT_AVATAR },
+      { name: "Дмитрий Быстров", position: "ALA", goals: 9, assists: 12, matches: 12, yellow_cards: 2, avatar: DEFAULT_AVATAR },
+      { name: "Сергей «Танк»", position: "FIX", goals: 5, assists: 7, matches: 14, yellow_cards: 8, avatar: DEFAULT_AVATAR },
+      { name: "Михаил Смирнов", position: "GK", goals: 2, assists: 5, matches: 12, yellow_cards: 0, avatar: DEFAULT_AVATAR }
+    ]
+  },
+  polynom: {
+    name: "Полином Екатеринбург",
+    league: "Лига Старт (Екатеринбург)",
+    badge: "📐",
+    players: [
+      { name: "Владимир Ершов", position: "PIV", goals: 25, assists: 12, matches: 15, yellow_cards: 2, avatar: DEFAULT_AVATAR },
+      { name: "Алексей Кузнецов", position: "ALA", goals: 14, assists: 10, matches: 14, yellow_cards: 3, avatar: DEFAULT_AVATAR },
+      { name: "Кирилл Морозов", position: "ALA", goals: 8, assists: 14, matches: 13, yellow_cards: 1, avatar: DEFAULT_AVATAR },
+      { name: "Роман Степанов", position: "FIX", goals: 4, assists: 6, matches: 15, yellow_cards: 5, avatar: DEFAULT_AVATAR },
+      { name: "Евгений Белов", position: "GK", goals: 0, assists: 3, matches: 15, yellow_cards: 0, avatar: DEFAULT_AVATAR }
+    ]
+  },
+  solyanka: {
+    name: "Солянка 5х5",
+    league: "Лига 5х5 (Екатеринбург)",
+    badge: "🍲",
+    players: [
+      { name: "Максим Громов", position: "PIV", goals: 18, assists: 8, matches: 12, yellow_cards: 1, avatar: DEFAULT_AVATAR },
+      { name: "Илья Волков", position: "ALA", goals: 10, assists: 11, matches: 11, yellow_cards: 4, avatar: DEFAULT_AVATAR },
+      { name: "Павел Соколов", position: "ALA", goals: 7, assists: 9, matches: 12, yellow_cards: 2, avatar: DEFAULT_AVATAR },
+      { name: "Антон Захаров", position: "FIX", goals: 3, assists: 5, matches: 12, yellow_cards: 6, avatar: DEFAULT_AVATAR },
+      { name: "Денис Орлов", position: "GK", goals: 1, assists: 2, matches: 12, yellow_cards: 1, avatar: DEFAULT_AVATAR }
+    ]
+  },
+  athletic: {
+    name: "ФК «Атлетик»",
+    league: "Лига Старт (Екатеринбург)",
+    badge: "🛡️",
+    players: [
+      { name: "Николай Котов", position: "PIV", goals: 16, assists: 7, matches: 13, yellow_cards: 2, avatar: DEFAULT_AVATAR },
+      { name: "Егор Васильев", position: "ALA", goals: 12, assists: 10, matches: 13, yellow_cards: 2, avatar: DEFAULT_AVATAR },
+      { name: "Тимур Алиев", position: "ALA", goals: 8, assists: 13, matches: 12, yellow_cards: 1, avatar: DEFAULT_AVATAR },
+      { name: "Виктор Сухов", position: "FIX", goals: 5, assists: 4, matches: 14, yellow_cards: 7, avatar: DEFAULT_AVATAR },
+      { name: "Олег Медведев", position: "GK", goals: 0, assists: 4, matches: 13, yellow_cards: 0, avatar: DEFAULT_AVATAR }
+    ]
+  },
+  spartak: {
+    name: "Спартак 5х5",
+    league: "Лига 5х5 (Екатеринбург)",
+    badge: "🔴",
+    players: [
+      { name: "Владислав Попов", position: "PIV", goals: 20, assists: 11, matches: 14, yellow_cards: 3, avatar: DEFAULT_AVATAR },
+      { name: "Данил Ковалев", position: "ALA", goals: 13, assists: 15, matches: 14, yellow_cards: 2, avatar: DEFAULT_AVATAR },
+      { name: "Артур Сафин", position: "ALA", goals: 9, assists: 11, matches: 13, yellow_cards: 1, avatar: DEFAULT_AVATAR },
+      { name: "Глеб Новиков", position: "FIX", goals: 4, assists: 5, matches: 14, yellow_cards: 5, avatar: DEFAULT_AVATAR },
+      { name: "Валерий Чернов", position: "GK", goals: 1, assists: 3, matches: 14, yellow_cards: 0, avatar: DEFAULT_AVATAR }
+    ]
+  },
+  dinamo: {
+    name: "Динамо Футзал",
+    league: "ФФГЭ (Наградион)",
+    badge: "👮",
+    players: [
+      { name: "Станислав Жуков", position: "PIV", goals: 19, assists: 6, matches: 12, yellow_cards: 1, avatar: DEFAULT_AVATAR },
+      { name: "Юрий Сидоров", position: "ALA", goals: 11, assists: 12, matches: 12, yellow_cards: 3, avatar: DEFAULT_AVATAR },
+      { name: "Матвей Федоров", position: "ALA", goals: 7, assists: 10, matches: 11, yellow_cards: 0, avatar: DEFAULT_AVATAR },
+      { name: "Константин Павлов", position: "FIX", goals: 3, assists: 4, matches: 12, yellow_cards: 4, avatar: DEFAULT_AVATAR },
+      { name: "Игорь Макаров", position: "GK", goals: 0, assists: 2, matches: 12, yellow_cards: 0, avatar: DEFAULT_AVATAR }
+    ]
+  }
+};
+
+function initTeamBattleArena() {
+  if (!currentBattleTeam1) {
+    currentBattleTeam1 = JSON.parse(JSON.stringify(PRESET_TEAMS.zenit));
+  }
+  if (!currentBattleTeam2) {
+    currentBattleTeam2 = JSON.parse(JSON.stringify(PRESET_TEAMS.athletic));
+  }
+  updateTeamBattleDisplay();
+}
+
+function loadMyLineupToTeamBattle(slot) {
+  // Загружаем текущий состав пятёрки из вкладки 5х5
+  const activeLineup = currentLineup.filter(Boolean);
+  let squad = [];
+
+  if (activeLineup.length >= 5) {
+    squad = activeLineup.slice(0, 5).map(p => ({
+      name: p.name,
+      position: p.position || "ALA",
+      goals: p.goals || 0,
+      assists: p.assists || 0,
+      matches: p.matches || 1,
+      yellow_cards: p.yellow_cards || 0,
+      avatar: p.avatar || DEFAULT_AVATAR
+    }));
+  } else {
+    // Дополняем игроками из избранного или пресета
+    const baseP = getCardPlayerObject();
+    squad.push(baseP);
+    const presetsList = [presets.ala, presets.fixo, presets.goleiro, presets.pivot];
+    for (let i = 0; i < 4; i++) {
+      const pr = presetsList[i];
+      squad.push({
+        name: pr.name, position: pr.pos, goals: pr.goals, assists: pr.assists, matches: pr.matches, yellow_cards: pr.yc, avatar: pr.avatar
+      });
+    }
+  }
+
+  const teamObj = {
+    name: "Моя Тактическая Пятёрка",
+    league: "Сборная турнира",
+    badge: "⭐",
+    players: squad
+  };
+
+  if (slot === 1) currentBattleTeam1 = teamObj;
+  else currentBattleTeam2 = teamObj;
+
+  updateTeamBattleDisplay();
+  const arena = document.getElementById("team-match-arena");
+  if (arena) arena.classList.add("hidden");
+}
+
+function loadPresetTeamToBattle(slot, key) {
+  if (!key || !PRESET_TEAMS[key]) return;
+  const teamObj = JSON.parse(JSON.stringify(PRESET_TEAMS[key]));
+  if (slot === 1) currentBattleTeam1 = teamObj;
+  else currentBattleTeam2 = teamObj;
+  updateTeamBattleDisplay();
+  const arena = document.getElementById("team-match-arena");
+  if (arena) arena.classList.add("hidden");
+}
+
+function handleTeamBattleSearch(slot, query) {
+  const q = (query || "").trim();
+  const resContainer = document.getElementById(`team-search-results-${slot}`);
+  if (!resContainer) return;
+
+  if (q.length < 2) {
+    resContainer.classList.add("hidden");
+    resContainer.innerHTML = "";
+    return;
+  }
+
+  resContainer.classList.remove("hidden");
+  resContainer.innerHTML = '<div class="p-3 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin text-emerald-400 mr-2"></i>Ищем команды в 3 лигах...</div>';
+
+  const timeoutVar = slot === 1 ? teamSearchTimeout1 : teamSearchTimeout2;
+  if (timeoutVar) clearTimeout(timeoutVar);
+
+  const newTimeout = setTimeout(async () => {
+    try {
+      const data = await fetchWithFallback(API_BASE + "/teams/search?q=" + encodeURIComponent(q));
+      if (!data || !data.results || data.results.length === 0) {
+        resContainer.innerHTML = '<div class="p-3 text-center text-slate-400 text-xs">Команда не найдена</div>';
+        return;
+      }
+
+      if (slot === 1) teamSearchResults1 = data.results;
+      else teamSearchResults2 = data.results;
+
+      resContainer.innerHTML = "";
+      data.results.forEach((t, idx) => {
+        const item = document.createElement("div");
+        item.className = "p-2.5 rounded-xl hover:bg-slate-800 cursor-pointer transition flex items-center justify-between gap-3 border border-transparent hover:border-emerald-400/30";
+        item.innerHTML = `
+          <div>
+            <h5 class="font-black text-white text-xs truncate">👕 ${t.team_name}</h5>
+            <div class="text-[10px] text-slate-400 mt-0.5">${t.source_name} · ${t.tournament_name || 'Чемпионат'}</div>
+          </div>
+          <div class="text-right text-[11px] font-bold text-amber-400">${t.matches || 0} матчей</div>
+        `;
+        item.onclick = () => selectTeamBattleSearchResult(slot, idx);
+        resContainer.appendChild(item);
+      });
+    } catch (e) {
+      resContainer.innerHTML = '<div class="p-3 text-center text-red-400 text-xs">Ошибка поиска</div>';
+    }
+  }, 300);
+
+  if (slot === 1) teamSearchTimeout1 = newTimeout;
+  else teamSearchTimeout2 = newTimeout;
+}
+
+function selectTeamBattleSearchResult(slot, index) {
+  const results = slot === 1 ? teamSearchResults1 : teamSearchResults2;
+  const t = results[index];
+  if (!t) return;
+
+  // Генерируем сбалансированную футзальную пятерку для найденной команды
+  const baseName = t.team_name;
+  const squad = [
+    { name: `Форвард (${baseName})`, position: "PIV", goals: 18, assists: 6, matches: t.matches || 12, yellow_cards: 2, avatar: DEFAULT_AVATAR },
+    { name: `Вингер 1 (${baseName})`, position: "ALA", goals: 10, assists: 14, matches: t.matches || 12, yellow_cards: 1, avatar: DEFAULT_AVATAR },
+    { name: `Вингер 2 (${baseName})`, position: "ALA", goals: 8, assists: 10, matches: t.matches || 12, yellow_cards: 3, avatar: DEFAULT_AVATAR },
+    { name: `Защитник (${baseName})`, position: "FIX", goals: 4, assists: 5, matches: t.matches || 12, yellow_cards: 5, avatar: DEFAULT_AVATAR },
+    { name: `Вратарь (${baseName})`, position: "GK", goals: 0, assists: 3, matches: t.matches || 12, yellow_cards: 0, avatar: DEFAULT_AVATAR }
+  ];
+
+  const teamObj = {
+    name: t.team_name,
+    league: t.source_name,
+    badge: "👕",
+    players: squad
+  };
+
+  if (slot === 1) currentBattleTeam1 = teamObj;
+  else currentBattleTeam2 = teamObj;
+
+  clearTeamBattleSearch(slot);
+  updateTeamBattleDisplay();
+  const arena = document.getElementById("team-match-arena");
+  if (arena) arena.classList.add("hidden");
+}
+
+function clearTeamBattleSearch(slot) {
+  const inp = document.getElementById(`team-search-input-${slot}`);
+  const res = document.getElementById(`team-search-results-${slot}`);
+  if (inp) inp.value = "";
+  if (res) {
+    res.classList.add("hidden");
+    res.innerHTML = "";
+  }
+}
+
+function calculateTeamRatings(team) {
+  if (!team || !team.players || !team.players.length) {
+    return { ovr: 80, att: 80, def: 80, gk: 80, pass: 80, exp: 80 };
+  }
+  let sumOvr = 0, sumAtt = 0, sumDef = 0, sumPass = 0, sumExp = 0;
+  let gkRating = 82;
+
+  team.players.forEach(p => {
+    const s = calculateDetailedPlayerStats(p);
+    sumOvr += s.ovr;
+    sumAtt += Math.round(s.fin * 0.6 + s.thr * 0.4);
+    sumDef += Math.round(s.disc * 0.5 + s.exp * 0.3 + 20);
+    sumPass += s.vis;
+    sumExp += s.exp;
+    if (p.position === "GK") {
+      gkRating = Math.round(s.disc * 0.35 + s.exp * 0.35 + 25);
+    }
+  });
+
+  const len = team.players.length;
+  return {
+    ovr: Math.round(sumOvr / len),
+    att: Math.round(sumAtt / len),
+    def: Math.round(sumDef / len),
+    pass: Math.round(sumPass / len),
+    exp: Math.round(sumExp / len),
+    gk: gkRating
+  };
+}
+
+function updateTeamBattleDisplay() {
+  if (!currentBattleTeam1 || !currentBattleTeam2) return;
+
+  const r1 = calculateTeamRatings(currentBattleTeam1);
+  const r2 = calculateTeamRatings(currentBattleTeam2);
+
+  // Команда 1
+  document.getElementById("team-1-name").innerText = currentBattleTeam1.name;
+  document.getElementById("team-1-league").innerText = currentBattleTeam1.league || "Лига 5х5";
+  document.getElementById("team-1-badge").innerText = currentBattleTeam1.badge || "⚽";
+  document.getElementById("team-1-ovr").innerText = r1.ovr;
+  document.getElementById("team-1-att-rating").innerText = r1.att;
+  document.getElementById("team-1-def-rating").innerText = r1.def;
+  document.getElementById("team-1-gk-rating").innerText = r1.gk;
+
+  const roster1El = document.getElementById("team-1-roster-preview");
+  roster1El.innerHTML = currentBattleTeam1.players.map(p => `
+    <div class="bg-slate-950 p-1.5 rounded-xl border border-slate-800">
+      <img src="${p.avatar || DEFAULT_AVATAR}" class="w-8 h-9 rounded-lg object-cover mx-auto bg-slate-900 border border-amber-400/30">
+      <div class="text-[9px] font-black text-amber-400 mt-1 uppercase">${p.position}</div>
+      <div class="text-[9px] text-white truncate max-w-[50px] mx-auto font-bold">${p.name.split(' ')[0]}</div>
+    </div>
+  `).join("");
+
+  // Команда 2
+  document.getElementById("team-2-name").innerText = currentBattleTeam2.name;
+  document.getElementById("team-2-league").innerText = currentBattleTeam2.league || "Лига Старт";
+  document.getElementById("team-2-badge").innerText = currentBattleTeam2.badge || "🛡️";
+  document.getElementById("team-2-ovr").innerText = r2.ovr;
+  document.getElementById("team-2-att-rating").innerText = r2.att;
+  document.getElementById("team-2-def-rating").innerText = r2.def;
+  document.getElementById("team-2-gk-rating").innerText = r2.gk;
+
+  const roster2El = document.getElementById("team-2-roster-preview");
+  roster2El.innerHTML = currentBattleTeam2.players.map(p => `
+    <div class="bg-slate-950 p-1.5 rounded-xl border border-slate-800">
+      <img src="${p.avatar || DEFAULT_AVATAR}" class="w-8 h-9 rounded-lg object-cover mx-auto bg-slate-900 border border-cyan-400/30">
+      <div class="text-[9px] font-black text-cyan-400 mt-1 uppercase">${p.position}</div>
+      <div class="text-[9px] text-white truncate max-w-[50px] mx-auto font-bold">${p.name.split(' ')[0]}</div>
+    </div>
+  `).join("");
+
+  renderTeamComparisonBars(r1, r2);
+}
+
+function renderTeamComparisonBars(r1, r2) {
+  const categories = [
+    { label: "Атакующая мощь (Attack)", v1: r1.att, v2: r2.att },
+    { label: "Контроль мяча и пас (Passing)", v1: r1.pass, v2: r2.pass },
+    { label: "Оборонительный цемент (Defense)", v1: r1.def, v2: r2.def },
+    { label: "Фактор голкипера (Goalkeeper)", v1: r1.gk, v2: r2.gk },
+    { label: "Опыт и сыгранность (Experience)", v1: r1.exp, v2: r2.exp }
+  ];
+
+  const container = document.getElementById("team-bars-container");
+  if (!container) return;
+  container.innerHTML = "";
+
+  categories.forEach(cat => {
+    const total = Math.max(1, cat.v1 + cat.v2);
+    const p1Pct = Math.round((cat.v1 / total) * 100);
+    const p2Pct = 100 - p1Pct;
+
+    const row = document.createElement("div");
+    row.className = "bg-slate-900/80 p-3 rounded-2xl border border-slate-800";
+    row.innerHTML = `
+      <div class="flex items-center justify-between text-xs font-bold mb-1">
+        <span class="text-amber-400">${cat.v1}</span>
+        <span class="text-slate-300 uppercase text-[11px]">${cat.label}</span>
+        <span class="text-cyan-400">${cat.v2}</span>
+      </div>
+      <div class="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden flex border border-slate-800">
+        <div class="h-full bg-amber-500 rounded-full" style="width: ${p1Pct}%"></div>
+        <div class="h-full bg-cyan-500 rounded-full ml-0.5" style="width: ${p2Pct}%"></div>
+      </div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+// -----------------------------------------------------------------------------
+// 🔥 СИМУЛЯЦИЯ МАТЧА 5х5: 2 ТАЙМА, ФОЛЫ, ДАБЛ-ПЕНАЛЬТИ, 5-Й ПОЛЕВОЙ И MVP
+// -----------------------------------------------------------------------------
+async function startTeam5x5Match() {
+  if (isTeamMatchRunning || !currentBattleTeam1 || !currentBattleTeam2) return;
+  isTeamMatchRunning = true;
+
+  const arena = document.getElementById("team-match-arena");
+  const eventsContainer = document.getElementById("team-match-events-container");
+  const summary = document.getElementById("team-match-summary");
+  const scoreT1El = document.getElementById("match-score-t1");
+  const scoreT2El = document.getElementById("match-score-t2");
+  const scoreT1Name = document.getElementById("match-score-t1-name");
+  const scoreT2Name = document.getElementById("match-score-t2-name");
+  const minuteEl = document.getElementById("team-match-minute");
+  const fouls1El = document.getElementById("team-1-fouls");
+  const fouls2El = document.getElementById("team-2-fouls");
+
+  if (!arena || !eventsContainer) return;
+
+  arena.classList.remove("hidden");
+  summary.classList.add("hidden");
+  eventsContainer.innerHTML = "";
+  scoreT1El.innerText = "0";
+  scoreT2El.innerText = "0";
+  scoreT1Name.innerText = currentBattleTeam1.name;
+  scoreT2Name.innerText = currentBattleTeam2.name;
+  fouls1El.innerText = "0 / 5";
+  fouls2El.innerText = "0 / 5";
+
+  arena.scrollIntoView({ behavior: "smooth", block: "center" });
+
+  const r1 = calculateTeamRatings(currentBattleTeam1);
+  const r2 = calculateTeamRatings(currentBattleTeam2);
+
+  const t1Scorers = currentBattleTeam1.players;
+  const t2Scorers = currentBattleTeam2.players;
+
+  let score1 = 0;
+  let score2 = 0;
+  let fouls1 = 0;
+  let fouls2 = 0;
+  const matchGoals = [];
+
+  const matchTimeline = [
+    // 1-й тайм (1 - 25 мин)
+    { min: "4'", type: "attack", text: `Разведка боем! ${t1Scorers[0].name} плотно заряжает в ближний угол — вратарь переводит на угловой!` },
+    { min: "9'", type: "goal", team: 1, scorer: t1Scorers[0].name, text: `ГО-О-ОЛ! 1:0! ${t1Scorers[0].name} замыкает прострел подошвой в касание на дальней штанге!` },
+    { min: "14'", type: "foul", team: 2, text: `Опасный фол в центре площадки: срыв быстрой контратаки 2 в 1.` },
+    { min: "19'", type: "goal", team: 2, scorer: t2Scorers[1].name, text: `ГО-О-ОЛ! 1:1! ${t2Scorers[1].name} накручивает двоих на фланге и кладёт с носка в девятку!` },
+    { min: "24'", type: "save", text: `Сейв тайма! Вратарь гостей вытягивается в шпагате на самой ленточке ворот!` },
+    { min: "25'", type: "halftime", text: `ПЕРЕРЫВ! Равный, высочайший темп мини-футбола в первом тайме.` },
+
+    // 2-й тайм (26 - 50 мин)
+    { min: "29'", type: "goal", team: 1, scorer: t1Scorers[1].name, text: `ГО-О-ОЛ! 2:1! Розыгрыш углового под удар низом — ${t1Scorers[1].name} шьёт сквозь частокол ног!` },
+    { min: "35'", type: "foul", team: 1, text: `Жёсткий стык у борта! 5-й командный фол — хозяева висят на волоске от дабл-пенальти!` },
+    { min: "41'", type: "goal", team: 2, scorer: t2Scorers[0].name, text: `ГО-О-ОЛ! 2:2! ${t2Scorers[0].name} продавливает последнего защитника и разворачивается с ударом!` },
+    { min: "46'", type: "double_penalty", team: 2, scorer: t2Scorers[0].name, text: `6-Й ФОЛ! 10-метровый дабл-пенальти без стенки! ${t2Scorers[0].name} хладнокровно разводит вратаря и мяч!` },
+    { min: "48'", type: "fifth_field", team: 1, text: `ВА-БАНК! Хозяева снимают вратаря и выпускают 5-го полевого в манишке!` },
+    { min: "49'", type: "clutch_goal", team: 1, scorer: t1Scorers[0].name, text: `БЕЗУМИЕ НА 49-Й МИНУТЕ! Раскатали впятером до верного: ${t1Scorers[0].name} заносит мяч в пустые ворота!` },
+    { min: "50'", type: "fulltime", text: `ФИНАЛЬНАЯ СИРЕНА! Валидольный матч 5х5 закончен под аплодисменты зала!` }
+  ];
+
+  for (let i = 0; i < matchTimeline.length; i++) {
+    await new Promise(r => setTimeout(r, 650));
+
+    const ev = matchTimeline[i];
+    minuteEl.innerText = `${ev.min} мин`;
+
+    let eventColor = "border-slate-800 text-slate-300";
+    let icon = "fa-futbol";
+
+    if (ev.type === "goal" || ev.type === "clutch_goal" || ev.type === "double_penalty") {
+      if (ev.team === 1) {
+        score1++;
+        scoreT1El.innerText = score1;
+        eventColor = "border-amber-500/50 bg-amber-500/10 text-amber-200";
+        matchGoals.push({ team: 1, min: ev.min, scorer: ev.scorer });
+      } else {
+        score2++;
+        scoreT2El.innerText = score2;
+        eventColor = "border-cyan-500/50 bg-cyan-500/10 text-cyan-200";
+        matchGoals.push({ team: 2, min: ev.min, scorer: ev.scorer });
+      }
+      icon = "fa-fire";
+    } else if (ev.type === "foul") {
+      if (ev.team === 1) fouls1++;
+      else fouls2++;
+      fouls1El.innerText = `${fouls1} / 5`;
+      fouls2El.innerText = `${fouls2} / 5`;
+      eventColor = "border-yellow-500/40 bg-yellow-500/10 text-yellow-300";
+      icon = "fa-triangle-exclamation";
+    } else if (ev.type === "halftime") {
+      fouls1 = 0; fouls2 = 0;
+      fouls1El.innerText = "0 / 5"; fouls2El.innerText = "0 / 5";
+      eventColor = "border-slate-700 bg-slate-900 text-slate-400 font-bold";
+      icon = "fa-pause";
+    }
+
+    const eventEl = document.createElement("div");
+    eventEl.className = `p-2.5 rounded-xl border ${eventColor} text-xs flex items-center gap-3 transition-all`;
+    eventEl.innerHTML = `
+      <span class="font-black text-amber-400 text-xs shrink-0 w-8">${ev.min}</span>
+      <i class="fa-solid ${icon} shrink-0 text-sm"></i>
+      <span class="flex-1">${ev.text}</span>
+    `;
+    eventsContainer.appendChild(eventEl);
+    eventsContainer.scrollTop = eventsContainer.scrollHeight;
+  }
+
+  await new Promise(r => setTimeout(r, 600));
+
+  summary.classList.remove("hidden");
+  summary.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+  const mvpCandidate = score1 >= score2 ? t1Scorers[0].name : t2Scorers[0].name;
+
+  summary.innerHTML = `
+    <div class="text-4xl mb-2">🏆⚽</div>
+    <h4 class="text-xl font-black text-white mb-1">
+      ИТОГ МАТЧА: <span class="text-amber-400">${currentBattleTeam1.name}</span> ${score1} : ${score2} <span class="text-cyan-400">${currentBattleTeam2.name}</span>
+    </h4>
+    <p class="text-xs font-bold text-emerald-400 mb-3">⭐ ИГРОК МАТЧА (MVP): <b>${mvpCandidate}</b> (решающий вклад в результат)</p>
+    
+    <div class="text-xs text-slate-300 bg-slate-950/70 p-3 rounded-xl border border-slate-800 max-w-lg mx-auto mb-4 text-left space-y-1">
+      <div class="font-bold text-slate-400 uppercase text-[10px] mb-1">📋 Протокол голов:</div>
+      ${matchGoals.map(g => `<div class="${g.team === 1 ? 'text-amber-300' : 'text-cyan-300'}">● ${g.min} — <b>${g.scorer}</b> (${g.team === 1 ? currentBattleTeam1.name : currentBattleTeam2.name})</div>`).join("")}
+    </div>
+
+    <div>
+      <button onclick="startTeam5x5Match()" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow">
+        <i class="fa-solid fa-rotate-right mr-1"></i> Сыграть матч-реванш 5х5
+      </button>
+    </div>
+  `;
+
+  isTeamMatchRunning = false;
+}
+
 function updateH2H() {
   updateDuelDisplay();
   renderDuelComparisonBars();
 }
-
 async function onSourceChange() {
   const select = document.getElementById("source-select");
   if (!select) return;
