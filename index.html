@@ -681,21 +681,21 @@
         <div id="battle-mode-solo-section" class="relative z-10">
 
           <!-- РИНГ / ЗОНА ВЫБОРА БОЙЦОВ 1х1 -->
-          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 xl:gap-6 items-stretch">
             
             <!-- БОЕЦ #1 (Левый золотой угол) -->
-            <div class="lg:col-span-5 bg-slate-950 p-5 sm:p-6 rounded-3xl border-2 border-amber-500/40 relative shadow-xl flex flex-col justify-between">
-              <div class="absolute -top-3 left-6 px-3 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 text-[11px] font-black uppercase tracking-wider shadow">
+            <div class="lg:col-span-5 min-w-0 bg-slate-950 p-4 sm:p-6 rounded-3xl border-2 border-amber-500/40 relative shadow-xl flex flex-col justify-between overflow-hidden">
+              <div class="absolute -top-3 left-6 px-3 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 text-[11px] font-black uppercase tracking-wider shadow z-10">
                 🟡 Дуэлянт #1 (Золотой угол)
               </div>
 
               <!-- Селекторы бойца 1 -->
-              <div class="space-y-3 mt-2">
-                <div class="flex items-center gap-2">
-                  <button onclick="loadCardPlayerToDuel(1)" class="flex-1 py-1.5 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition flex items-center justify-center gap-1.5">
-                    <i class="fa-solid fa-bolt"></i> Взять с карточки
+              <div class="space-y-3 mt-2 min-w-0">
+                <div class="grid grid-cols-2 gap-2 w-full min-w-0">
+                  <button onclick="loadCardPlayerToDuel(1)" class="w-full min-w-0 py-2 px-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition flex items-center justify-center gap-1 truncate" title="Взять с текущей карточки">
+                    <i class="fa-solid fa-bolt shrink-0"></i> <span class="truncate">С карточки</span>
                   </button>
-                  <select id="h2h-fav-select-1" onchange="loadFavToDuel(1, this.value)" class="flex-1 py-1.5 px-3 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-slate-200 focus:outline-none focus:border-amber-400">
+                  <select id="h2h-fav-select-1" onchange="loadFavToDuel(1, this.value)" class="w-full min-w-0 truncate py-2 px-2.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-slate-200 focus:outline-none focus:border-amber-400">
                     <option value="">Из избранного...</option>
                   </select>
                 </div>
@@ -751,34 +751,34 @@
             </div>
 
             <!-- ЦЕНТР: VS & КНОПКА ПАННА-ДУЭЛИ 1х1 -->
-            <div class="lg:col-span-2 flex flex-col items-center justify-center gap-4 py-4 lg:py-0">
-              <div class="w-16 h-16 rounded-3xl bg-gradient-to-br from-amber-500/20 via-rose-500/20 to-cyan-500/20 border-2 border-rose-500/40 flex items-center justify-center text-xl font-black text-white shadow-2xl transform hover:rotate-12 transition">
+            <div class="lg:col-span-2 min-w-0 flex flex-col items-center justify-center gap-3 py-3 lg:py-0 px-1">
+              <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-amber-500/20 via-rose-500/20 to-cyan-500/20 border-2 border-rose-500/40 flex items-center justify-center text-lg font-black text-white shadow-xl shrink-0">
                 ⚔️
               </div>
               
-              <button onclick="startSoloPannaFight()" id="solo-fight-btn" class="w-full py-4 px-4 rounded-2xl bg-gradient-to-r from-amber-500 via-rose-500 to-cyan-500 hover:from-amber-400 hover:to-cyan-400 text-slate-950 font-black text-xs sm:text-sm uppercase tracking-wider transition-all transform hover:scale-105 shadow-xl shadow-rose-500/30 flex flex-col items-center justify-center gap-1">
-                <span class="flex items-center gap-1.5"><i class="fa-solid fa-crown text-amber-950"></i> ВЫЙТИ В КОРОБКУ 1х1!</span>
-                <span class="text-[10px] normal-case opacity-90 font-bold">Панна-дуэль на микро-площадке</span>
+              <button onclick="startSoloPannaFight()" id="solo-fight-btn" class="w-full py-3 px-2 rounded-2xl bg-gradient-to-r from-amber-500 via-rose-500 to-cyan-500 hover:from-amber-400 hover:to-cyan-400 text-slate-950 font-black text-xs uppercase tracking-wider transition-all transform hover:scale-105 shadow-lg shadow-rose-500/25 flex flex-col items-center justify-center gap-0.5 text-center">
+                <span class="flex items-center gap-1 text-[11px]"><i class="fa-solid fa-crown text-amber-950"></i> В КОРОБКУ 1х1!</span>
+                <span class="text-[9px] normal-case opacity-90 font-bold">Панна-дуэль</span>
               </button>
-              <div class="text-[10px] text-slate-500 font-bold uppercase tracking-widest text-center">Panna Showdown 1x1</div>
+              <div class="text-[9px] text-slate-500 font-bold uppercase tracking-widest text-center">Panna 1x1</div>
             </div>
 
             <!-- БОЕЦ #2 (Правый циановый угол) -->
-            <div class="lg:col-span-5 bg-slate-950 p-5 sm:p-6 rounded-3xl border-2 border-cyan-500/40 relative shadow-xl flex flex-col justify-between">
-              <div class="absolute -top-3 right-6 px-3 py-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-cyan-600 text-slate-950 text-[11px] font-black uppercase tracking-wider shadow">
+            <div class="lg:col-span-5 min-w-0 bg-slate-950 p-4 sm:p-6 rounded-3xl border-2 border-cyan-500/40 relative shadow-xl flex flex-col justify-between overflow-hidden">
+              <div class="absolute -top-3 right-6 px-3 py-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-cyan-600 text-slate-950 text-[11px] font-black uppercase tracking-wider shadow z-10">
                 🔵 Дуэлянт #2 (Циановый угол)
               </div>
 
               <!-- Селекторы бойца 2 -->
-              <div class="space-y-3 mt-2">
-                <div class="flex items-center gap-2">
-                  <select id="h2h-presets-select-2" onchange="loadPresetToDuel(2, this.value)" class="flex-1 py-1.5 px-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-xs font-bold text-cyan-300 focus:outline-none">
-                    <option value="">Быстрые пресеты...</option>
-                    <option value="ala">Артем Воронин (Ала, 11г + 18п)</option>
-                    <option value="fixo">Сергей «Танк» (Фиксо, 8 ЖК)</option>
-                    <option value="goleiro">Михаил Смирнов (Вратарь)</option>
+              <div class="space-y-3 mt-2 min-w-0">
+                <div class="grid grid-cols-2 gap-2 w-full min-w-0">
+                  <select id="h2h-presets-select-2" onchange="loadPresetToDuel(2, this.value)" class="w-full min-w-0 truncate py-2 px-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-xs font-bold text-cyan-300 focus:outline-none">
+                    <option value="">Пресеты...</option>
+                    <option value="ala">Воронин А. (11г+18п)</option>
+                    <option value="fixo">Сергей «Танк» (8ЖК)</option>
+                    <option value="goleiro">Смирнов М. (Вратарь)</option>
                   </select>
-                  <select id="h2h-fav-select-2" onchange="loadFavToDuel(2, this.value)" class="flex-1 py-1.5 px-3 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-slate-200 focus:outline-none focus:border-cyan-400">
+                  <select id="h2h-fav-select-2" onchange="loadFavToDuel(2, this.value)" class="w-full min-w-0 truncate py-2 px-2.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-slate-200 focus:outline-none focus:border-cyan-400">
                     <option value="">Из избранного...</option>
                   </select>
                 </div>
@@ -885,23 +885,23 @@
         <div id="battle-mode-team-section" class="relative z-10 hidden">
           
           <!-- ЗОНА ВЫБОРА КОМАНД / ПЯТЁРОК -->
-          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 xl:gap-6 items-stretch">
             
             <!-- КОМАНДА #1 (Золотые - Хозяева паркета) -->
-            <div class="lg:col-span-5 bg-slate-950 p-5 sm:p-6 rounded-3xl border-2 border-amber-500/40 relative shadow-xl flex flex-col justify-between">
-              <div class="absolute -top-3 left-6 px-3 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 text-[11px] font-black uppercase tracking-wider shadow">
+            <div class="lg:col-span-5 min-w-0 bg-slate-950 p-4 sm:p-6 rounded-3xl border-2 border-amber-500/40 relative shadow-xl flex flex-col justify-between overflow-hidden">
+              <div class="absolute -top-3 left-6 px-3 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 text-[11px] font-black uppercase tracking-wider shadow z-10">
                 🟡 Команда #1 (Хозяева)
               </div>
 
-              <div class="space-y-3 mt-2">
-                <div class="flex items-center gap-2">
-                  <button onclick="loadMyLineupToTeamBattle(1)" class="flex-1 py-1.5 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition flex items-center justify-center gap-1.5">
-                    <i class="fa-solid fa-people-group"></i> Моя пятёрка из вкладки
+              <div class="space-y-3 mt-2 min-w-0">
+                <div class="grid grid-cols-2 gap-2 w-full min-w-0">
+                  <button onclick="loadMyLineupToTeamBattle(1)" class="w-full min-w-0 py-2 px-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition flex items-center justify-center gap-1 truncate" title="Загрузить мою пятёрку из вкладки 5х5">
+                    <i class="fa-solid fa-people-group shrink-0"></i> <span class="truncate">Моя пятёрка</span>
                   </button>
-                  <select id="team-preset-select-1" onchange="loadPresetTeamToBattle(1, this.value)" class="flex-1 py-1.5 px-3 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-slate-200 focus:outline-none focus:border-amber-400">
-                    <option value="">Готовые команды...</option>
-                    <option value="zenit">ЛФК «Зенит» Мини</option>
-                    <option value="polynom">Полином Екатеринбург</option>
+                  <select id="team-preset-select-1" onchange="loadPresetTeamToBattle(1, this.value)" class="w-full min-w-0 truncate py-2 px-2.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-slate-200 focus:outline-none focus:border-amber-400">
+                    <option value="">Команды...</option>
+                    <option value="zenit">ЛФК «Зенит»</option>
+                    <option value="polynom">Полином</option>
                     <option value="solyanka">Солянка 5х5</option>
                   </select>
                 </div>
@@ -958,27 +958,27 @@
             </div>
 
             <!-- ЦЕНТР: VS & КНОПКА СТАРТА МАТЧА 5х5 -->
-            <div class="lg:col-span-2 flex flex-col items-center justify-center gap-4 py-4 lg:py-0">
-              <div class="w-16 h-16 rounded-3xl bg-gradient-to-br from-amber-500/20 via-rose-500/20 to-cyan-500/20 border-2 border-emerald-500/40 flex items-center justify-center text-xl font-black text-white shadow-2xl">
+            <div class="lg:col-span-2 min-w-0 flex flex-col items-center justify-center gap-3 py-3 lg:py-0 px-1">
+              <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-amber-500/20 via-rose-500/20 to-cyan-500/20 border-2 border-emerald-500/40 flex items-center justify-center text-lg font-black text-white shadow-xl shrink-0">
                 ⚽
               </div>
               
-              <button onclick="startTeam5x5Match()" id="team-fight-btn" class="w-full py-4 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-black text-xs sm:text-sm uppercase tracking-wider transition-all transform hover:scale-105 shadow-xl shadow-emerald-500/30 flex flex-col items-center justify-center gap-1">
-                <span class="flex items-center gap-1.5"><i class="fa-solid fa-whistle text-slate-950"></i> СВИСТОК НА МАТЧ!</span>
-                <span class="text-[10px] normal-case opacity-90 font-bold">2 тайма по 25 мин (5х5)</span>
+              <button onclick="startTeam5x5Match()" id="team-fight-btn" class="w-full py-3 px-2 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-black text-xs uppercase tracking-wider transition-all transform hover:scale-105 shadow-lg shadow-emerald-500/25 flex flex-col items-center justify-center gap-0.5 text-center">
+                <span class="flex items-center gap-1 text-[11px]"><i class="fa-solid fa-play text-slate-950"></i> МАТЧ 5 НА 5!</span>
+                <span class="text-[9px] normal-case opacity-90 font-bold">2 тайма по 25 мин</span>
               </button>
-              <div class="text-[10px] text-slate-500 font-bold uppercase tracking-widest text-center">Futsal Match 5x5</div>
+              <div class="text-[9px] text-slate-500 font-bold uppercase tracking-widest text-center">Futsal 5x5</div>
             </div>
 
             <!-- КОМАНДА #2 (Циановые - Гости паркета) -->
-            <div class="lg:col-span-5 bg-slate-950 p-5 sm:p-6 rounded-3xl border-2 border-cyan-500/40 relative shadow-xl flex flex-col justify-between">
-              <div class="absolute -top-3 right-6 px-3 py-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-cyan-600 text-slate-950 text-[11px] font-black uppercase tracking-wider shadow">
+            <div class="lg:col-span-5 min-w-0 bg-slate-950 p-4 sm:p-6 rounded-3xl border-2 border-cyan-500/40 relative shadow-xl flex flex-col justify-between overflow-hidden">
+              <div class="absolute -top-3 right-6 px-3 py-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-cyan-600 text-slate-950 text-[11px] font-black uppercase tracking-wider shadow z-10">
                 🔵 Команда #2 (Гости)
               </div>
 
-              <div class="space-y-3 mt-2">
-                <div class="flex items-center gap-2">
-                  <select id="team-preset-select-2" onchange="loadPresetTeamToBattle(2, this.value)" class="flex-1 py-1.5 px-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-xs font-bold text-cyan-300 focus:outline-none">
+              <div class="space-y-3 mt-2 min-w-0">
+                <div class="grid grid-cols-1 gap-2 w-full min-w-0">
+                  <select id="team-preset-select-2" onchange="loadPresetTeamToBattle(2, this.value)" class="w-full min-w-0 truncate py-2 px-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-xs font-bold text-cyan-300 focus:outline-none">
                     <option value="">Готовые команды...</option>
                     <option value="athletic">ФК «Атлетик»</option>
                     <option value="spartak">Спартак 5х5</option>

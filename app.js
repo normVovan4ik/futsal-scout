@@ -1400,7 +1400,11 @@ async function populateDuelFavoritesDropdowns() {
       return;
     }
 
-    const optionsHtml = baseOpt + favs.map(f => `<option value="${f.id}">${f.name} (${f.team || 'Без команды'} · ${f.goals}г)</option>`).join("");
+        const optionsHtml = baseOpt + favs.map(f => {
+      const shortN = formatShortName(f.name);
+      const teamClean = (f.team || '5х5').split(' ')[0].slice(0, 10);
+      return `<option value="${f.id}">${shortN} (${teamClean} · ${f.goals}г)</option>`;
+    }).join("");
     sel1.innerHTML = optionsHtml;
     sel2.innerHTML = optionsHtml;
     window.cachedDuelFavorites = favs;
