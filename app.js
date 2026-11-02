@@ -983,41 +983,54 @@ function recalcCard() {
   document.getElementById("val-rc").innerText = rc;
   document.getElementById("val-mvp").innerText = mvp;
 
-  // Формулы футзальной статистики (30-99)
+  // Balanced stat formulas v2 (30-99)
+  // FIN: goals/match  | VIS: assists/match  | IMP: (g+a)/match
+  // DISC: inverse foul rate | EXP: career matches | CLUTCH: MVP rate
+
+  const clamp = (v, lo = 30, hi = 99) => Math.min(hi, Math.max(lo, v));
+
+  // FIN (Киллер): goals/match. 0->40 | 0.5->62 | 1->84 | 1.5->99+
   const gPerMatch = goals / matches;
-  let fin = Math.round(45 + Math.min(50, gPerMatch * 28) + (flagBackpost ? 4 : 0));
+  let fin = clamp(Math.round(40 + gPerMatch * 44) + (flagBackpost ? 3 : 0));
 
+  // VIS (Плеймейкер): assists/match. 0->40 | 0.5->65 | 1->90 | 1.2->99
   const aPerMatch = assists / matches;
-  let vis = Math.round(45 + Math.min(50, aPerMatch * 35));
+  let vis = clamp(Math.round(40 + aPerMatch * 50));
 
+  // IMP (Влияние): (g+a)/match. 0->40 | 1->62 | 2->84 | 2.7->99
   const ptsPerMatch = (goals + assists) / matches;
-  let imp = Math.round(40 + Math.min(55, ptsPerMatch * 22) + (mvp * 2));
+  let imp = clamp(Math.round(40 + ptsPerMatch * 22) + (mvp >= 3 ? 3 : 0));
 
-  const penalty = (yc * 5) + (rc * 15);
-  let disc = Math.max(35, Math.round(99 - (penalty / matches * 40)));
+  // DISC (Дисциплина): inversely proportional to cards per match
+  // 0 cards -> 99 | 0.5 YC/match -> ~79 | 1 YC/match -> ~59 | RC -18 penalty
+  const foulRate = (yc * 10 + rc * 18) / matches;
+  let disc = clamp(Math.round(99 - foulRate * 8));
 
-  const attRate = matches / teamMatches;
-  let att = Math.round(Math.min(99, Math.max(40, attRate * 99)));
+  // EXP (Опыт): career match count. 5->55 | 25->72 | 60->84 | 120->93 | 200->99
+  // Uses cube-root-like curve to avoid early saturation
+  let exp = clamp(Math.round(40 + Math.pow(matches, 0.52) * 12));
 
-  let clutch = Math.round(55 + Math.min(40, (mvp / matches) * 90) + (goals > 10 ? 5 : 0));
+  // CLUTCH (Решала): MVP rate. 0%->55 | 10%->64 | 25%->77 | 50%->99
+  // Bonus +4 if avg goals/match >= 1.5 (truly dangerous scorer)
+  const mvpRate = mvp / matches;
+  let clutch = clamp(Math.round(55 + mvpRate * 90) + (gPerMatch >= 1.5 ? 4 : 0) + (flagFifth ? 2 : 0));
 
-  const clamp = v => Math.min(99, Math.max(30, v));
   fin = clamp(fin);
   vis = clamp(vis);
   imp = clamp(imp);
   disc = clamp(disc);
-  att = clamp(att);
+  exp = clamp(exp);
   clutch = clamp(clutch);
 
   let ovr = 75;
   if (pos === "PIV") {
-    ovr = Math.round(fin * 0.40 + imp * 0.25 + clutch * 0.15 + att * 0.10 + vis * 0.10);
+    ovr = Math.round(fin * 0.35 + imp * 0.25 + clutch * 0.15 + vis * 0.15 + exp * 0.10);
   } else if (pos === "ALA") {
-    ovr = Math.round(vis * 0.30 + imp * 0.25 + fin * 0.20 + att * 0.15 + clutch * 0.10);
+    ovr = Math.round(vis * 0.30 + imp * 0.25 + fin * 0.20 + clutch * 0.15 + exp * 0.10);
   } else if (pos === "FIX") {
-    ovr = Math.round(disc * 0.30 + att * 0.25 + imp * 0.20 + clutch * 0.15 + vis * 0.10);
+    ovr = Math.round(disc * 0.30 + exp * 0.20 + imp * 0.20 + clutch * 0.20 + vis * 0.10);
   } else if (pos === "GK") {
-    ovr = Math.round(clutch * 0.35 + att * 0.30 + disc * 0.20 + (flagFifth ? vis * 0.15 : 10));
+    ovr = Math.round(clutch * 0.35 + disc * 0.25 + exp * 0.20 + (flagFifth ? vis * 0.20 : 15));
   }
   ovr = clamp(ovr);
 
@@ -1040,16 +1053,16 @@ function recalcCard() {
   document.getElementById("stat-vis").innerText = vis;
   document.getElementById("stat-imp").innerText = imp;
   document.getElementById("stat-disc").innerText = disc;
-  document.getElementById("stat-att").innerText = att;
+  document.getElementById("stat-att").innerText = exp;
   document.getElementById("stat-clutch").innerText = clutch;
 
   updateBadges({
     pos: pos, goals: goals, assists: assists, matches: matches, teamMatches: teamMatches, yc: yc, rc: rc, mvp: mvp,
-    flagMorning: flagMorning, flagFifth: flagFifth, flagBackpost: flagBackpost, fin: fin, vis: vis, imp: imp, disc: disc, att: att
+    flagMorning: flagMorning, flagFifth: flagFifth, flagBackpost: flagBackpost, fin: fin, vis: vis, imp: imp, disc: disc, exp: exp
   });
 
-  updateRadar([fin, vis, imp, disc, att, clutch]);
-  updateScoutText({ name: name, pos: pos, goals: goals, assists: assists, matches: matches, yc: yc, rc: rc, mvp: mvp, ovr: ovr, fin: fin, vis: vis, imp: imp, disc: disc, att: att, clutch: clutch, team: team });
+  updateRadar([fin, vis, imp, disc, exp, clutch]);
+  updateScoutText({ name: name, pos: pos, goals: goals, assists: assists, matches: matches, yc: yc, rc: rc, mvp: mvp, ovr: ovr, fin: fin, vis: vis, imp: imp, disc: disc, exp: exp, clutch: clutch, team: team });
 }
 
 function updateBadges(data) {
@@ -1057,7 +1070,7 @@ function updateBadges(data) {
   container.innerHTML = "";
   const badges = [];
 
-  if (data.att >= 95 && data.flagMorning) {
+  if (data.exp >= 85 && data.flagMorning) {
     badges.push({ icon: "⏰", title: "Будильник в 9:00", bg: "bg-amber-500/20 text-amber-300 border-amber-500/40" });
   }
   if (data.flagBackpost && data.goals >= 5) {
@@ -1093,7 +1106,7 @@ function initRadar() {
   radarChart = new Chart(ctx, {
     type: "radar",
     data: {
-      labels: ["FIN (Киллер)", "VIS (Пас)", "IMP (Влияние)", "DISC (Дисципл)", "ATT (Явка)", "CLUTCH"],
+      labels: ["FIN (Киллер)", "VIS (Плеймейкер)", "IMP (Влияние)", "DISC (Дисципл)", "EXP (Опыт)", "CLUTCH (Решала)"],
       datasets: [{
         label: "Характеристики 5х5",
         data: [85, 80, 90, 70, 95, 85],
@@ -1179,8 +1192,8 @@ function updateScoutText(p) {
     styleDesc = "Голкипер команды <b>" + p.team + "</b>. " + p.matches + " матчей на страже ворот.";
   }
 
-  let strongPoint = p.fin >= 85 ? "Смертоносная реализация моментов в штрафной." : (p.vis >= 80 ? "Филигранное чтение игры и передачи вразрез." : (p.clutch >= 80 ? "Решает исходы валидольных матчей на последних секундах." : "Колоссальная самоотдача и объем беговой работы."));
-  let riskPoint = p.yc >= 3 ? "Риск перебора командных фолов (опасность 10-метровых дабл-пенальти)." : (p.att < 75 ? "Нестабильный график явки на ранние утренние матчи." : "Иногда заигрывается и требует подстраховки при контратаках.");
+  let strongPoint = p.fin >= 87 ? "Смертоносная реализация: больше гола за матч — это снайперская элита." : (p.vis >= 82 ? "Филигранное чтение игры и передачи вразрез." : (p.clutch >= 82 ? "Решает исходы валидольных матчей на последних секундах." : (p.exp >= 80 ? "Многолетняя боевая закалка — опытный ветеран лиги." : "Колоссальная самоотдача и объем беговой работы.")));
+  let riskPoint = p.yc >= 3 ? "Риск перебора командных фолов (опасность 10-метровых дабл-пенальти)." : (p.disc < 65 ? "Карточки подводят: дисциплина ниже нормы, рискует оставить команду в меньшинстве." : "Иногда заигрывается и требует подстраховки при контратаках.");
 
   summaryEl.innerHTML = '<div class="mb-2"><span class="px-2.5 py-1 rounded-xl text-xs font-black bg-amber-500/20 text-amber-300 border border-amber-500/30">' + archetype + '</span></div>' +
     '<p class="text-slate-200"><b>Стиль:</b> ' + styleDesc + '</p>' +
@@ -1248,7 +1261,7 @@ function updateH2H() {
   const p1Vis = parseInt(document.getElementById("stat-vis").innerText) || 75;
   const p1Imp = parseInt(document.getElementById("stat-imp").innerText) || 85;
   const p1Disc = parseInt(document.getElementById("stat-disc").innerText) || 70;
-  const p1Att = parseInt(document.getElementById("stat-att").innerText) || 90;
+  const p1Exp = parseInt(document.getElementById("stat-att").innerText) || 70;
 
   const rivalStats = {
     artem: { fin: 76, vis: 92, imp: 88, disc: 90, att: 92 },
