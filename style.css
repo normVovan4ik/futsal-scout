@@ -80,3 +80,28 @@
 .lineup-hover-card {
   box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.9), 0 0 25px rgba(245, 158, 11, 0.4);
 }
+
+/* Арена Дуэлей 5х5 */
+@keyframes duelPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 15px rgba(244, 63, 94, 0.4); }
+  50% { transform: scale(1.03); box-shadow: 0 0 30px rgba(245, 158, 11, 0.7); }
+}
+
+.duel-fight-active {
+  animation: duelPulse 1.5s infinite ease-in-out;
+}
+
+@keyframes roundSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.duel-round-card {
+  animation: roundSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

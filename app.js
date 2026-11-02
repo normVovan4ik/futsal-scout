@@ -899,6 +899,9 @@ function switchTab(tabId) {
   if (tabId === 'lineup') {
     initLineup();
   }
+  if (tabId === 'head-to-head') {
+    initDuelArena();
+  }
   document.querySelectorAll(".tab-content").forEach(el => {
     el.classList.add("hidden");
     el.classList.remove("block");
@@ -1249,64 +1252,638 @@ function exportCard() {
   });
 }
 
-function updateH2H() {
-  const rivalKey = document.getElementById("h2h-rival-select").value;
-  const rival = presets[rivalKey];
-  if (!rival) return;
+// =============================================================================
+// ФУТЗАЛЬНАЯ ДУЭЛЬ: БИТВА 1 НА 1 (H2H ARENA)
+// =============================================================================
+let duelFighter1 = null;
+let duelFighter2 = null;
+let duelSearchResults1 = [];
+let duelSearchResults2 = [];
+let duelSearchTimeout1 = null;
+let duelSearchTimeout2 = null;
+let isDuelFighting = false;
 
-  document.getElementById("h2h-p2-img").src = rival.avatar;
+// Расчет всех 6 характеристик и OVR для произвольного игрока
+function calculateDetailedPlayerStats(p) {
+  if (!p) return { fin: 50, vis: 50, imp: 50, disc: 70, exp: 50, thr: 50, ovr: 50, matches: 0, goals: 0, assists: 0, yc: 0, rc: 0, mvp: 0 };
+  const matches = Math.max(1, parseInt(p.matches || p.total_matches) || 1);
+  const goals = Math.max(0, parseInt(p.goals || p.total_goals) || 0);
+  const assists = Math.max(0, parseInt(p.assists || p.total_assists) || 0);
+  const yc = Math.max(0, parseInt(p.yellow_cards || p.total_yellow_cards || p.yc) || 0);
+  const rc = Math.max(0, parseInt(p.red_cards || p.total_red_cards || p.rc) || 0);
+  const mvp = Math.max(0, parseInt(p.mvp_count || p.total_mvp || p.mvp) || 0);
+  const pos = p.position || p.pos || "ALA";
 
-  const p1Name = document.getElementById("input-name").value || "Иван Петров";
-  const p1Fin = parseInt(document.getElementById("stat-fin").innerText) || 85;
-  const p1Vis = parseInt(document.getElementById("stat-vis").innerText) || 75;
-  const p1Imp = parseInt(document.getElementById("stat-imp").innerText) || 85;
-  const p1Disc = parseInt(document.getElementById("stat-disc").innerText) || 70;
-  const p1Exp = parseInt(document.getElementById("stat-att").innerText) || 70;
-  const p1Thr = parseInt(document.getElementById("stat-clutch").innerText) || 75;
+  const clamp = (v, lo = 30, hi = 99) => Math.min(hi, Math.max(lo, v));
 
-  const rivalStats = {
-    artem: { fin: 76, vis: 92, imp: 88, disc: 90, exp: 88, thr: 85 },
-    sergey: { fin: 60, vis: 68, imp: 72, disc: 45, exp: 95, thr: 64 },
-    mikhail: { fin: 45, vis: 75, imp: 80, disc: 95, exp: 82, thr: 58 }
-  }[rivalKey];
+  const gPerMatch = goals / matches;
+  let fin = clamp(Math.round(40 + gPerMatch * 44));
+
+  const aPerMatch = assists / matches;
+  let vis = clamp(Math.round(40 + aPerMatch * 50));
+
+  const ptsPerMatch = (goals + assists) / matches;
+  let imp = clamp(Math.round(40 + ptsPerMatch * 22) + (mvp >= 3 ? 3 : 0));
+
+  const foulRate = (yc * 10 + rc * 18) / matches;
+  let disc = clamp(Math.round(99 - foulRate * 8));
+
+  let exp = clamp(Math.round(40 + Math.pow(matches, 0.52) * 12));
+
+  let thr = clamp(Math.round(40 + gPerMatch * 28 + aPerMatch * 18 + Math.min(gPerMatch, aPerMatch) * 20));
+
+  let ovr = 75;
+  if (pos === "PIV") {
+    ovr = Math.round(fin * 0.30 + imp * 0.25 + thr * 0.20 + vis * 0.15 + exp * 0.10);
+  } else if (pos === "ALA") {
+    ovr = Math.round(vis * 0.30 + imp * 0.25 + thr * 0.20 + fin * 0.15 + exp * 0.10);
+  } else if (pos === "FIX") {
+    ovr = Math.round(disc * 0.30 + exp * 0.20 + imp * 0.20 + thr * 0.15 + vis * 0.15);
+  } else if (pos === "GK") {
+    ovr = Math.round(disc * 0.35 + thr * 0.25 + exp * 0.20 + 15);
+  }
+  ovr = clamp(ovr);
+
+  return { fin, vis, imp, disc, exp, thr, ovr, matches, goals, assists, yc, rc, mvp };
+}
+
+function getCardPlayerObject() {
+  const name = document.getElementById("input-name")?.value || "Иван Петров";
+  const team = document.getElementById("input-team")?.value || "ЛФК «Зенит» Мини";
+  const pos = document.getElementById("input-pos")?.value || "PIV";
+  const avatar = document.getElementById("card-avatar")?.src || DEFAULT_AVATAR;
+  const matches = parseInt(document.getElementById("input-matches")?.value) || 14;
+  const goals = parseInt(document.getElementById("input-goals")?.value) || 22;
+  const assists = parseInt(document.getElementById("input-assists")?.value) || 9;
+  const yc = parseInt(document.getElementById("input-yc")?.value) || 3;
+  const rc = parseInt(document.getElementById("input-rc")?.value) || 0;
+  const mvp = parseInt(document.getElementById("input-mvp")?.value) || 5;
+
+  return {
+    name, team, position: pos, avatar,
+    matches, goals, assists, yellow_cards: yc, red_cards: rc, mvp_count: mvp
+  };
+}
+
+async function initDuelArena() {
+  await populateDuelFavoritesDropdowns();
+
+  if (!duelFighter1) {
+    duelFighter1 = getCardPlayerObject();
+  }
+  if (!duelFighter2) {
+    const p = presets.ala;
+    duelFighter2 = {
+      name: p.name,
+      team: p.team,
+      position: p.pos,
+      avatar: p.avatar,
+      matches: p.matches,
+      goals: p.goals,
+      assists: p.assists,
+      yellow_cards: p.yc,
+      red_cards: p.rc,
+      mvp_count: p.mvp
+    };
+  }
+
+  updateDuelDisplay();
+  renderDuelComparisonBars();
+}
+
+async function populateDuelFavoritesDropdowns() {
+  try {
+    const favs = await fetchWithFallback(API_BASE + "/favorites");
+    const sel1 = document.getElementById("h2h-fav-select-1");
+    const sel2 = document.getElementById("h2h-fav-select-2");
+    if (!sel1 || !sel2) return;
+
+    const baseOpt = '<option value="">Из избранного...</option>';
+    if (!favs || !favs.length) {
+      sel1.innerHTML = baseOpt;
+      sel2.innerHTML = baseOpt;
+      return;
+    }
+
+    const optionsHtml = baseOpt + favs.map(f => `<option value="${f.id}">${f.name} (${f.team || 'Без команды'} · ${f.goals}г)</option>`).join("");
+    sel1.innerHTML = optionsHtml;
+    sel2.innerHTML = optionsHtml;
+    window.cachedDuelFavorites = favs;
+  } catch (e) {
+    console.warn("Ошибка загрузки избранного для дуэли:", e);
+  }
+}
+
+function loadCardPlayerToDuel(slot) {
+  const p = getCardPlayerObject();
+  if (slot === 1) duelFighter1 = p;
+  else duelFighter2 = p;
+  updateDuelDisplay();
+  renderDuelComparisonBars();
+  resetDuelFightArena();
+}
+
+function loadFavToDuel(slot, favId) {
+  if (!favId || !window.cachedDuelFavorites) return;
+  const fav = window.cachedDuelFavorites.find(f => String(f.id) === String(favId));
+  if (!fav) return;
+
+  const fighter = {
+    name: fav.name,
+    team: fav.team || "Без команды",
+    position: fav.position || "ALA",
+    avatar: fav.avatar || DEFAULT_AVATAR,
+    matches: fav.matches || 1,
+    goals: fav.goals || 0,
+    assists: fav.assists || 0,
+    yellow_cards: fav.yellow_cards || 0,
+    red_cards: fav.red_cards || 0,
+    mvp_count: fav.mvp_count || 0
+  };
+
+  if (slot === 1) duelFighter1 = fighter;
+  else duelFighter2 = fighter;
+
+  updateDuelDisplay();
+  renderDuelComparisonBars();
+  resetDuelFightArena();
+}
+
+function loadPresetToDuel(slot, key) {
+  if (!key || !presets[key]) return;
+  const p = presets[key];
+  const fighter = {
+    name: p.name,
+    team: p.team,
+    position: p.pos,
+    avatar: p.avatar,
+    matches: p.matches,
+    goals: p.goals,
+    assists: p.assists,
+    yellow_cards: p.yc,
+    red_cards: p.rc,
+    mvp_count: p.mvp
+  };
+
+  if (slot === 1) duelFighter1 = fighter;
+  else duelFighter2 = fighter;
+
+  updateDuelDisplay();
+  renderDuelComparisonBars();
+  resetDuelFightArena();
+}
+
+function swapDuelPlayers() {
+  const temp = duelFighter1;
+  duelFighter1 = duelFighter2;
+  duelFighter2 = temp;
+  updateDuelDisplay();
+  renderDuelComparisonBars();
+  resetDuelFightArena();
+}
+
+function resetDuelArena() {
+  duelFighter1 = getCardPlayerObject();
+  const p = presets.ala;
+  duelFighter2 = {
+    name: p.name, team: p.team, position: p.pos, avatar: p.avatar,
+    matches: p.matches, goals: p.goals, assists: p.assists, yellow_cards: p.yc, red_cards: p.rc, mvp_count: p.mvp
+  };
+  clearDuelSearch(1);
+  clearDuelSearch(2);
+  updateDuelDisplay();
+  renderDuelComparisonBars();
+  resetDuelFightArena();
+}
+
+function resetDuelFightArena() {
+  const arena = document.getElementById("duel-battle-arena");
+  if (arena) arena.classList.add("hidden");
+  isDuelFighting = false;
+}
+
+// -----------------------------------------------------------------------------
+// Живой поиск игроков для дуэли по всем 3 сайтам
+// -----------------------------------------------------------------------------
+function handleDuelSearch(slot, query) {
+  const q = (query || "").trim();
+  const resContainer = document.getElementById(`h2h-search-results-${slot}`);
+  if (!resContainer) return;
+
+  if (q.length < 2) {
+    resContainer.classList.add("hidden");
+    resContainer.innerHTML = "";
+    return;
+  }
+
+  resContainer.classList.remove("hidden");
+  resContainer.innerHTML = '<div class="p-3 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin text-amber-400 mr-2"></i>Ищем во всех 3 лигах...</div>';
+
+  const timeoutVar = slot === 1 ? duelSearchTimeout1 : duelSearchTimeout2;
+  if (timeoutVar) clearTimeout(timeoutVar);
+
+  const newTimeout = setTimeout(async () => {
+    try {
+      const data = await fetchWithFallback(API_BASE + "/search?q=" + encodeURIComponent(q));
+      if (!data || !data.results || data.results.length === 0) {
+        resContainer.innerHTML = '<div class="p-3 text-center text-slate-400 text-xs">Игрок не найден. Попробуйте только фамилию.</div>';
+        return;
+      }
+
+      if (slot === 1) duelSearchResults1 = data.results;
+      else duelSearchResults2 = data.results;
+
+      resContainer.innerHTML = "";
+      data.results.forEach((p, idx) => {
+        const item = document.createElement("div");
+        item.className = "p-2.5 rounded-xl hover:bg-slate-800 cursor-pointer transition flex items-center justify-between gap-3 border border-transparent hover:border-amber-400/30";
+        
+        const teamsStr = Object.keys(p.all_teams || {}).slice(0, 2).join(", ") || "Команда не указана";
+        const leaguesStr = (p.sources_found || []).map(s => {
+          let col = "text-amber-400";
+          if (s.indexOf("Старт") !== -1) col = "text-sky-400";
+          if (s.indexOf("ФФГЭ") !== -1 || s.indexOf("Наградион") !== -1) col = "text-emerald-400";
+          return `<span class="${col}">● ${s}</span>`;
+        }).join(" ");
+
+        item.innerHTML = `
+          <div class="flex items-center gap-2.5 min-w-0 flex-1">
+            <img src="${p.avatar || DEFAULT_AVATAR}" class="w-8 h-10 rounded-lg object-cover bg-slate-950 border border-slate-700 shrink-0">
+            <div class="min-w-0 flex-1">
+              <h5 class="font-black text-white text-xs truncate">${p.name}</h5>
+              <div class="text-[10px] text-slate-400 truncate">${teamsStr}</div>
+              <div class="text-[9px] text-slate-500 mt-0.5">${leaguesStr}</div>
+            </div>
+          </div>
+          <div class="text-right shrink-0">
+            <div class="text-[11px] font-black text-amber-400">${p.total_goals || 0} г</div>
+            <div class="text-[10px] text-slate-400">${p.total_matches || 0} м</div>
+          </div>
+        `;
+        item.onclick = () => selectDuelSearchResult(slot, idx);
+        resContainer.appendChild(item);
+      });
+    } catch (e) {
+      resContainer.innerHTML = '<div class="p-3 text-center text-red-400 text-xs">Ошибка поиска</div>';
+    }
+  }, 300);
+
+  if (slot === 1) duelSearchTimeout1 = newTimeout;
+  else duelSearchTimeout2 = newTimeout;
+}
+
+function selectDuelSearchResult(slot, index) {
+  const results = slot === 1 ? duelSearchResults1 : duelSearchResults2;
+  const p = results[index];
+  if (!p) return;
+
+  const teamsKeys = Object.keys(p.all_teams || {});
+  const mainTeam = teamsKeys.length ? teamsKeys[0] : "Без команды";
+
+  let pos = "ALA";
+  const gPerM = (p.total_goals || 0) / Math.max(1, p.total_matches || 1);
+  if (gPerM >= 0.9) pos = "PIV";
+  else if ((p.total_yellow_cards || 0) >= 4) pos = "FIX";
+
+  const fighter = {
+    name: p.name,
+    team: mainTeam,
+    position: pos,
+    avatar: p.avatar || DEFAULT_AVATAR,
+    matches: p.total_matches || 1,
+    goals: p.total_goals || 0,
+    assists: p.total_assists || 0,
+    yellow_cards: p.total_yellow_cards || 0,
+    red_cards: p.total_red_cards || 0,
+    mvp_count: p.total_mvp || 0
+  };
+
+  if (slot === 1) duelFighter1 = fighter;
+  else duelFighter2 = fighter;
+
+  clearDuelSearch(slot);
+  updateDuelDisplay();
+  renderDuelComparisonBars();
+  resetDuelFightArena();
+}
+
+function clearDuelSearch(slot) {
+  const inp = document.getElementById(`h2h-search-input-${slot}`);
+  const res = document.getElementById(`h2h-search-results-${slot}`);
+  if (inp) inp.value = "";
+  if (res) {
+    res.classList.add("hidden");
+    res.innerHTML = "";
+  }
+}
+
+// Обновление визиток обоих дуэлянтов на экране
+function updateDuelDisplay() {
+  if (!duelFighter1 || !duelFighter2) return;
+
+  const s1 = calculateDetailedPlayerStats(duelFighter1);
+  const s2 = calculateDetailedPlayerStats(duelFighter2);
+
+  // Боец 1
+  document.getElementById("h2h-p1-img").src = duelFighter1.avatar || DEFAULT_AVATAR;
+  document.getElementById("h2h-p1-name").innerText = duelFighter1.name;
+  document.getElementById("h2h-p1-team").innerText = duelFighter1.team || "Без команды";
+  document.getElementById("h2h-p1-pos").innerText = duelFighter1.position || "PIV";
+  document.getElementById("h2h-p1-ovr").innerText = s1.ovr;
+  document.getElementById("h2h-p1-matches").innerText = s1.matches;
+  document.getElementById("h2h-p1-goals").innerText = s1.goals;
+  document.getElementById("h2h-p1-assists").innerText = s1.assists;
+  document.getElementById("h2h-p1-yc").innerText = s1.yc;
+
+  // Боец 2
+  document.getElementById("h2h-p2-img").src = duelFighter2.avatar || DEFAULT_AVATAR;
+  document.getElementById("h2h-p2-name").innerText = duelFighter2.name;
+  document.getElementById("h2h-p2-team").innerText = duelFighter2.team || "Без команды";
+  document.getElementById("h2h-p2-pos").innerText = duelFighter2.position || "ALA";
+  document.getElementById("h2h-p2-ovr").innerText = s2.ovr;
+  document.getElementById("h2h-p2-matches").innerText = s2.matches;
+  document.getElementById("h2h-p2-goals").innerText = s2.goals;
+  document.getElementById("h2h-p2-assists").innerText = s2.assists;
+  document.getElementById("h2h-p2-yc").innerText = s2.yc;
+}
+
+// Рендер сравнительных полос характеристик
+function renderDuelComparisonBars() {
+  if (!duelFighter1 || !duelFighter2) return;
+
+  const s1 = calculateDetailedPlayerStats(duelFighter1);
+  const s2 = calculateDetailedPlayerStats(duelFighter2);
 
   const categories = [
-    { label: "Киллер / Голы (FIN)", v1: p1Fin, v2: rivalStats.fin },
-    { label: "Плеймейкер / Ассисты (VIS)", v1: p1Vis, v2: rivalStats.vis },
-    { label: "Влияние на игру (IMP)", v1: p1Imp, v2: rivalStats.imp },
-    { label: "Дисциплина (DISC)", v1: p1Disc, v2: rivalStats.disc },
-    { label: "Опыт и карьера (EXP)", v1: p1Exp, v2: rivalStats.exp },
-    { label: "Двусторонняя угроза (THR)", v1: p1Thr, v2: rivalStats.thr }
+    { label: "Киллер / Голы (FIN)", v1: s1.fin, v2: s2.fin, desc: "Опасность и хладнокровие перед чужими воротами" },
+    { label: "Плеймейкер / Ассисты (VIS)", v1: s1.vis, v2: s2.vis, desc: "Культура паса, видение паркета и создание моментов" },
+    { label: "Влияние на игру (IMP)", v1: s1.imp, v2: s2.imp, desc: "Суммарный вклад в результат (Гол + Пас за тур)" },
+    { label: "Дисциплина (DISC)", v1: s1.disc, v2: s2.disc, desc: "Чистота отбора, минимум фолов и желтых карточек" },
+    { label: "Опыт и карьера (EXP)", v1: s1.exp, v2: s2.exp, desc: "Наигранные матчи и адаптация к турнирному накалу" },
+    { label: "Двусторонняя угроза (THR)", v1: s1.thr, v2: s2.thr, desc: "Умение одновременно и забивать, и ассистировать" },
+    { label: "Общий футзальный рейтинг (OVR)", v1: s1.ovr, v2: s2.ovr, desc: "Интегральный уровень игрока в формате 5х5" }
   ];
 
   const container = document.getElementById("h2h-bars-container");
+  if (!container) return;
   container.innerHTML = "";
 
   let p1Wins = 0;
   let p2Wins = 0;
 
   categories.forEach(cat => {
-    if (cat.v1 > cat.v2) p1Wins++;
-    else if (cat.v2 > cat.v1) p2Wins++;
+    let winnerBadge = "";
+    if (cat.v1 > cat.v2) {
+      p1Wins++;
+      winnerBadge = `<span class="px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40">+${cat.v1 - cat.v2} Золотой</span>`;
+    } else if (cat.v2 > cat.v1) {
+      p2Wins++;
+      winnerBadge = `<span class="px-2 py-0.5 rounded-md text-[10px] font-black bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">+${cat.v2 - cat.v1} Циановый</span>`;
+    } else {
+      winnerBadge = `<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-800 text-slate-400">Ничья</span>`;
+    }
+
+    const total = Math.max(1, cat.v1 + cat.v2);
+    const p1Pct = Math.round((cat.v1 / total) * 100);
+    const p2Pct = 100 - p1Pct;
 
     const row = document.createElement("div");
-    row.className = "bg-slate-950 p-3.5 rounded-xl border border-slate-800";
-    row.innerHTML = '<div class="flex justify-between text-xs font-bold mb-1.5"><span class="text-amber-400">' + p1Name + ': ' + cat.v1 + '</span><span class="text-slate-400 uppercase">' + cat.label + '</span><span class="text-cyan-400">' + rival.name + ': ' + cat.v2 + '</span></div>' +
-      '<div class="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden flex">' +
-        '<div class="h2h-bar-p1 h-full" style="width: ' + ((cat.v1 / (cat.v1 + cat.v2)) * 100) + '%"></div>' +
-        '<div class="h2h-bar-p2 h-full" style="width: ' + ((cat.v2 / (cat.v1 + cat.v2)) * 100) + '%"></div>' +
-      '</div>';
+    row.className = "bg-slate-900/80 p-3.5 rounded-2xl border border-slate-800/80 transition hover:border-slate-700";
+    row.innerHTML = `
+      <div class="flex items-center justify-between text-xs font-bold mb-1.5 flex-wrap gap-2">
+        <div class="flex items-center gap-2">
+          <span class="text-amber-400 font-black text-sm">${cat.v1}</span>
+          <span class="text-slate-300 font-semibold">${duelFighter1.name.split(' ')[0]}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-slate-300 font-extrabold uppercase text-[11px] tracking-wider">${cat.label}</span>
+          ${winnerBadge}
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-slate-300 font-semibold">${duelFighter2.name.split(' ')[0]}</span>
+          <span class="text-cyan-400 font-black text-sm">${cat.v2}</span>
+        </div>
+      </div>
+      <div class="w-full bg-slate-950 h-3 rounded-full overflow-hidden flex border border-slate-800 p-0.5">
+        <div class="h-full rounded-full transition-all duration-500 ${cat.v1 >= cat.v2 ? 'bg-gradient-to-r from-amber-500 to-amber-400' : 'bg-amber-500/50'}" style="width: ${p1Pct}%"></div>
+        <div class="h-full rounded-full transition-all duration-500 ml-0.5 ${cat.v2 >= cat.v1 ? 'bg-gradient-to-r from-cyan-400 to-cyan-500' : 'bg-cyan-500/50'}" style="width: ${p2Pct}%"></div>
+      </div>
+      <div class="text-[10px] text-slate-500 mt-1 italic">${cat.desc}</div>
+    `;
     container.appendChild(row);
   });
 
   const verdictEl = document.getElementById("h2h-verdict");
-  if (p1Wins > p2Wins) {
-    verdictEl.innerHTML = "🔥 Преимущество за <b>" + p1Name + "</b> (" + p1Wins + " из " + categories.length + " категорий). Опаснее при игре в чужой штрафной!";
-  } else if (p2Wins > p1Wins) {
-    verdictEl.innerHTML = "⚡ Преимущество за <b>" + rival.name + "</b> (" + p2Wins + " из " + categories.length + " категорий). Лучше контролирует темп встречи!";
-  } else {
-    verdictEl.innerHTML = "🤝 Абсолютное равенство сил! Исход дуэли решит один эпизод на последних минутах.";
+  if (verdictEl) {
+    if (p1Wins > p2Wins) {
+      verdictEl.innerHTML = `🔥 По сумме качеств доминирует <b>${duelFighter1.name}</b> (выиграл <b>${p1Wins} из ${categories.length}</b> категорий). Значительно опаснее в атакующей фазе!`;
+    } else if (p2Wins > p1Wins) {
+      verdictEl.innerHTML = `⚡ По сумме качеств сильнее <b>${duelFighter2.name}</b> (выиграл <b>${p2Wins} из ${categories.length}</b> категорий). Диктует темп и строже в деталях!`;
+    } else {
+      verdictEl.innerHTML = `🤝 <b>Идеальный баланс сил!</b> Игроки абсолютно равны (по ${p1Wins} побед). Исход матча решит одна ошибка или фарт.`;
+    }
   }
+}
+
+// -----------------------------------------------------------------------------
+// 🔥 СИМУЛЯЦИЯ БИТВЫ НА ПАРКЕТЕ (5 РАУНДОВ С КОММЕНТАРИЕМ И РАНДОМОМ)
+// -----------------------------------------------------------------------------
+async function startDuelFight() {
+  if (isDuelFighting || !duelFighter1 || !duelFighter2) return;
+  isDuelFighting = true;
+
+  const arena = document.getElementById("duel-battle-arena");
+  const roundsContainer = document.getElementById("duel-rounds-container");
+  const ceremony = document.getElementById("duel-winner-ceremony");
+  const scoreP1El = document.getElementById("duel-score-p1");
+  const scoreP2El = document.getElementById("duel-score-p2");
+  const scoreP1Name = document.getElementById("duel-score-p1-name");
+  const scoreP2Name = document.getElementById("duel-score-p2-name");
+  const liveTitle = document.getElementById("duel-live-title");
+
+  if (!arena || !roundsContainer) return;
+
+  arena.classList.remove("hidden");
+  ceremony.classList.add("hidden");
+  roundsContainer.innerHTML = "";
+  scoreP1El.innerText = "0";
+  scoreP2El.innerText = "0";
+  scoreP1Name.innerText = duelFighter1.name.split(' ')[0];
+  scoreP2Name.innerText = duelFighter2.name.split(' ')[0];
+  liveTitle.innerText = `${duelFighter1.name} против ${duelFighter2.name}`;
+
+  arena.scrollIntoView({ behavior: "smooth", block: "center" });
+
+  const s1 = calculateDetailedPlayerStats(duelFighter1);
+  const s2 = calculateDetailedPlayerStats(duelFighter2);
+
+  const roundsConfig = [
+    {
+      num: 1,
+      name: "🎯 Снайперский выход 1 на 1 (FIN)",
+      icon: "fa-bullseye",
+      base1: s1.fin,
+      base2: s2.fin,
+      descP1Win: `${duelFighter1.name} на ложном замахе подошвой убирает вратаря и нежно катит в пустые!`,
+      descP2Win: `${duelFighter2.name} хлёстко бьёт с носка в самую девятку без шансов для ленточки!`,
+      descDraw: `Штанга! Оба бомбардира зарядили в каркас ворот — ничья в раунде.`
+    },
+    {
+      num: 2,
+      name: "🧙‍♂️ Дриблинг и пас вразрез (VIS)",
+      icon: "fa-wand-magic-sparkles",
+      base1: s1.vis,
+      base2: s2.vis,
+      descP1Win: `${duelFighter1.name} видит открывание на дальней штанге и шьёт ювелирную передачу шведкой между троих!`,
+      descP2Win: `${duelFighter2.name} качает защитника, финтит подошвой и выкатывает идеальный пас на ход!`,
+      descDraw: `Плотнейшая опека — оба распасовщика заблокированы защитниками.`
+    },
+    {
+      num: 3,
+      name: "🧱 Стык у борта и прессинг (DISC)",
+      icon: "fa-shield-halved",
+      base1: s1.disc,
+      base2: s2.disc,
+      descP1Win: `${duelFighter1.name} образцово ставит корпус у аута, чисто забирает мяч без свистка арбитра!`,
+      descP2Win: `${duelFighter2.name} совершает идеальный чистый подкат в мяч и не привозит опасный фол!`,
+      descDraw: `Борьба кость в кость у бровки! Судья держит свисток при себе — игра продолжается.`
+    },
+    {
+      num: 4,
+      name: "⚡ Двусторонняя угроза (THR)",
+      icon: "fa-bolt-lightning",
+      base1: s1.thr,
+      base2: s2.thr,
+      descP1Win: `${duelFighter1.name} запутал защитников: показал передачу, а сам вонзил с носка под перекладину!`,
+      descP2Win: `${duelFighter2.name} взрывает фланг: и обыграл двоих, и положил мяч в дальний угол!`,
+      descDraw: `Оба универсала действовали молниеносно, вратари совершают спасения тура!`
+    },
+    {
+      num: 5,
+      name: "👑 Валидольная 49-я минута (EXP & OVR)",
+      icon: "fa-trophy",
+      base1: Math.round(s1.exp * 0.5 + s1.ovr * 0.5),
+      base2: Math.round(s2.exp * 0.5 + s2.ovr * 0.5),
+      descP1Win: `СИРЕНА! На последних 5 секундах ${duelFighter1.name} на хладнокровии вколачивает решающий мяч!`,
+      descP2Win: `СИРЕНА! Колоссальный опыт: ${duelFighter2.name} выгрызает победу в падении под рёв трибун!`,
+      descDraw: `Финальный свисток! Сумасшедшая концовка, никто не дрогнул под прессингом сирены.`
+    }
+  ];
+
+  let p1Score = 0;
+  let p2Score = 0;
+
+  for (let i = 0; i < roundsConfig.length; i++) {
+    await new Promise(r => setTimeout(r, 650));
+
+    const r = roundsConfig[i];
+    // Футзальный бросок кубика (от -7 до +7 к характеристике)
+    const roll1 = Math.floor(Math.random() * 15) - 7;
+    const roll2 = Math.floor(Math.random() * 15) - 7;
+    const total1 = Math.max(15, r.base1 + roll1);
+    const total2 = Math.max(15, r.base2 + roll2);
+
+    let roundWinner = 0; // 0 = draw, 1 = p1, 2 = p2
+    let roundText = r.descDraw;
+    let badgeHtml = '<span class="px-2 py-0.5 rounded text-[10px] font-black bg-slate-800 text-slate-400">Ничья</span>';
+
+    if (total1 > total2) {
+      roundWinner = 1;
+      p1Score++;
+      roundText = r.descP1Win;
+      badgeHtml = `<span class="px-2 py-0.5 rounded text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40">+${total1 - total2} за ${duelFighter1.name.split(' ')[0]}</span>`;
+    } else if (total2 > total1) {
+      roundWinner = 2;
+      p2Score++;
+      roundText = r.descP2Win;
+      badgeHtml = `<span class="px-2 py-0.5 rounded text-[10px] font-black bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">+${total2 - total1} за ${duelFighter2.name.split(' ')[0]}</span>`;
+    }
+
+    scoreP1El.innerText = p1Score;
+    scoreP2El.innerText = p2Score;
+
+    const roundEl = document.createElement("div");
+    roundEl.className = "duel-round-card bg-slate-900/90 border " + (roundWinner === 1 ? 'border-amber-500/50 bg-gradient-to-r from-amber-500/10 via-slate-900 to-transparent' : (roundWinner === 2 ? 'border-cyan-500/50 bg-gradient-to-r from-transparent via-slate-900 to-cyan-500/10' : 'border-slate-800')) + " p-3.5 rounded-2xl";
+    roundEl.innerHTML = `
+      <div class="flex items-center justify-between text-xs font-bold mb-1">
+        <span class="text-white flex items-center gap-1.5"><i class="fa-solid ${r.icon} text-amber-400"></i> Раунд ${r.num}: ${r.name}</span>
+        ${badgeHtml}
+      </div>
+      <div class="flex items-center justify-between text-[11px] text-slate-400 mb-2">
+        <span class="${roundWinner === 1 ? 'text-amber-300 font-black' : ''}">${duelFighter1.name.split(' ')[0]}: стат ${r.base1} ${roll1 >= 0 ? '+' : ''}${roll1} = <b>${total1}</b></span>
+        <span class="${roundWinner === 2 ? 'text-cyan-300 font-black' : ''}">${duelFighter2.name.split(' ')[0]}: стат ${r.base2} ${roll2 >= 0 ? '+' : ''}${roll2} = <b>${total2}</b></span>
+      </div>
+      <p class="text-xs text-slate-200 italic bg-slate-950/70 p-2 rounded-xl border border-slate-800/80">«${roundText}»</p>
+    `;
+    roundsContainer.appendChild(roundEl);
+  }
+
+  // Финальная церемония победителя
+  await new Promise(r => setTimeout(r, 600));
+
+  ceremony.classList.remove("hidden");
+  ceremony.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+  const penalties = [
+    "Проигравший покупает 5 литров воды на команду и моет командные манишки!",
+    "Проигравший идёт в ворота на следующей предматчевой двухсторонке!",
+    "Победитель заказывает пиццу за счёт проигравшего и бьёт все 10-метровые пенальти в сезоне!",
+    "Проигравший собирает все мячи и фишки после тренировки целую неделю!",
+    "Победитель объявляется официальным Батей паркета с пожизненным уважением в раздевалке!"
+  ];
+  const randPenalty = penalties[Math.floor(Math.random() * penalties.length)];
+
+  if (p1Score > p2Score) {
+    ceremony.innerHTML = `
+      <div class="text-4xl mb-2">🏆👑</div>
+      <h4 class="text-xl font-black text-amber-400 mb-1">ПОБЕДИТЕЛЬ ДУЭЛИ: ${duelFighter1.name.toUpperCase()}!</h4>
+      <p class="text-xs font-bold text-white mb-3">Счёт матча: <span class="text-amber-400 text-lg">${p1Score}</span> : <span class="text-cyan-400 text-lg">${p2Score}</span></p>
+      <div class="inline-block p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs font-semibold mb-4 max-w-lg">
+        ⚽ <b>Футзальный приговор:</b> ${randPenalty}
+      </div>
+      <div>
+        <button onclick="startDuelFight()" class="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow">
+          <i class="fa-solid fa-rotate-right mr-1"></i> Реванш (Сыграть снова)
+        </button>
+      </div>
+    `;
+  } else if (p2Score > p1Score) {
+    ceremony.innerHTML = `
+      <div class="text-4xl mb-2">🏆👑</div>
+      <h4 class="text-xl font-black text-cyan-400 mb-1">ПОБЕДИТЕЛЬ ДУЭЛИ: ${duelFighter2.name.toUpperCase()}!</h4>
+      <p class="text-xs font-bold text-white mb-3">Счёт матча: <span class="text-amber-400 text-lg">${p1Score}</span> : <span class="text-cyan-400 text-lg">${p2Score}</span></p>
+      <div class="inline-block p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-200 text-xs font-semibold mb-4 max-w-lg">
+        ⚽ <b>Футзальный приговор:</b> ${randPenalty}
+      </div>
+      <div>
+        <button onclick="startDuelFight()" class="px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow">
+          <i class="fa-solid fa-rotate-right mr-1"></i> Реванш (Сыграть снова)
+        </button>
+      </div>
+    `;
+  } else {
+    ceremony.innerHTML = `
+      <div class="text-4xl mb-2">🤝⚽</div>
+      <h4 class="text-xl font-black text-white mb-1">БОЕВАЯ НИЧЬЯ: ${p1Score} : ${p2Score}!</h4>
+      <p class="text-xs text-slate-400 mb-3">Паркет не смог определить лучшего — оба дуэлянта показали феноменальный футзал.</p>
+      <div class="inline-block p-3 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 text-xs font-semibold mb-4">
+        Оба игрока делят звание лучших игроков тура и скидываются пополам на аренду зала!
+      </div>
+      <div>
+        <button onclick="startDuelFight()" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-cyan-500 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow">
+          <i class="fa-solid fa-rotate-right mr-1"></i> Серия пенальти (Реванш)
+        </button>
+      </div>
+    `;
+  }
+
+  isDuelFighting = false;
+}
+
+// Псевдоним для совместимости
+function updateH2H() {
+  updateDuelDisplay();
+  renderDuelComparisonBars();
 }
 
 async function onSourceChange() {
