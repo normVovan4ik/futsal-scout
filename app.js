@@ -1010,27 +1010,27 @@ function recalcCard() {
   // Uses cube-root-like curve to avoid early saturation
   let exp = clamp(Math.round(40 + Math.pow(matches, 0.52) * 12));
 
-  // CLUTCH (Решала): MVP rate. 0%->55 | 10%->64 | 25%->77 | 50%->99
-  // Bonus +4 if avg goals/match >= 1.5 (truly dangerous scorer)
-  const mvpRate = mvp / matches;
-  let clutch = clamp(Math.round(55 + mvpRate * 90) + (gPerMatch >= 1.5 ? 4 : 0) + (flagFifth ? 2 : 0));
+  // THR (Угроза): dual-threat score - rewards players who BOTH score AND assist.
+  // Pure scorer or pure assister get moderate rating; balanced dual-threat gets top marks.
+  // 0g 0a/m -> 40 | pure 1g/m -> 68 | pure 1a/m -> 58 | balanced 0.8g+0.6a -> ~85 | elite 1.2g+0.8a -> 99
+  let thr = clamp(Math.round(40 + gPerMatch * 28 + aPerMatch * 18 + Math.min(gPerMatch, aPerMatch) * 20));
 
   fin = clamp(fin);
   vis = clamp(vis);
   imp = clamp(imp);
   disc = clamp(disc);
   exp = clamp(exp);
-  clutch = clamp(clutch);
+  thr = clamp(thr);
 
   let ovr = 75;
   if (pos === "PIV") {
-    ovr = Math.round(fin * 0.35 + imp * 0.25 + clutch * 0.15 + vis * 0.15 + exp * 0.10);
+    ovr = Math.round(fin * 0.30 + imp * 0.25 + thr * 0.20 + vis * 0.15 + exp * 0.10);
   } else if (pos === "ALA") {
-    ovr = Math.round(vis * 0.30 + imp * 0.25 + fin * 0.20 + clutch * 0.15 + exp * 0.10);
+    ovr = Math.round(vis * 0.30 + imp * 0.25 + thr * 0.20 + fin * 0.15 + exp * 0.10);
   } else if (pos === "FIX") {
-    ovr = Math.round(disc * 0.30 + exp * 0.20 + imp * 0.20 + clutch * 0.20 + vis * 0.10);
+    ovr = Math.round(disc * 0.30 + exp * 0.20 + imp * 0.20 + thr * 0.15 + vis * 0.15);
   } else if (pos === "GK") {
-    ovr = Math.round(clutch * 0.35 + disc * 0.25 + exp * 0.20 + (flagFifth ? vis * 0.20 : 15));
+    ovr = Math.round(disc * 0.35 + thr * 0.25 + exp * 0.20 + (flagFifth ? vis * 0.20 : 15));
   }
   ovr = clamp(ovr);
 
@@ -1054,15 +1054,15 @@ function recalcCard() {
   document.getElementById("stat-imp").innerText = imp;
   document.getElementById("stat-disc").innerText = disc;
   document.getElementById("stat-att").innerText = exp;
-  document.getElementById("stat-clutch").innerText = clutch;
+  document.getElementById("stat-clutch").innerText = thr;
 
   updateBadges({
     pos: pos, goals: goals, assists: assists, matches: matches, teamMatches: teamMatches, yc: yc, rc: rc, mvp: mvp,
-    flagMorning: flagMorning, flagFifth: flagFifth, flagBackpost: flagBackpost, fin: fin, vis: vis, imp: imp, disc: disc, exp: exp
+    flagMorning: flagMorning, flagFifth: flagFifth, flagBackpost: flagBackpost, fin: fin, vis: vis, imp: imp, disc: disc, exp: exp, thr: thr
   });
 
-  updateRadar([fin, vis, imp, disc, exp, clutch]);
-  updateScoutText({ name: name, pos: pos, goals: goals, assists: assists, matches: matches, yc: yc, rc: rc, mvp: mvp, ovr: ovr, fin: fin, vis: vis, imp: imp, disc: disc, exp: exp, clutch: clutch, team: team });
+  updateRadar([fin, vis, imp, disc, exp, thr]);
+  updateScoutText({ name: name, pos: pos, goals: goals, assists: assists, matches: matches, yc: yc, rc: rc, mvp: mvp, ovr: ovr, fin: fin, vis: vis, imp: imp, disc: disc, exp: exp, thr: thr, team: team });
 }
 
 function updateBadges(data) {
@@ -1106,7 +1106,7 @@ function initRadar() {
   radarChart = new Chart(ctx, {
     type: "radar",
     data: {
-      labels: ["FIN (Киллер)", "VIS (Плеймейкер)", "IMP (Влияние)", "DISC (Дисципл)", "EXP (Опыт)", "CLUTCH (Решала)"],
+      labels: ["FIN (Киллер)", "VIS (Плеймейкер)", "IMP (Влияние)", "DISC (Дисципл)", "EXP (Опыт)", "THR (Угроза)"],
       datasets: [{
         label: "Характеристики 5х5",
         data: [85, 80, 90, 70, 95, 85],
@@ -1192,7 +1192,7 @@ function updateScoutText(p) {
     styleDesc = "Голкипер команды <b>" + p.team + "</b>. " + p.matches + " матчей на страже ворот.";
   }
 
-  let strongPoint = p.fin >= 87 ? "Смертоносная реализация: больше гола за матч — это снайперская элита." : (p.vis >= 82 ? "Филигранное чтение игры и передачи вразрез." : (p.clutch >= 82 ? "Решает исходы валидольных матчей на последних секундах." : (p.exp >= 80 ? "Многолетняя боевая закалка — опытный ветеран лиги." : "Колоссальная самоотдача и объем беговой работы.")));
+  let strongPoint = p.fin >= 87 ? "Смертоносная реализация: больше гола за матч — это снайперская элита." : (p.vis >= 82 ? "Филигранное чтение игры и передачи вразрез." : (p.thr >= 82 ? "Двухсторонняя угроза: забивает и ассистирует с одинаковой эффективностью — настоящий игрок оффензивной зоны." : (p.exp >= 80 ? "Многолетняя боевая закалка — опытный ветеран лиги." : "Колоссальная самоотдача и объем беговой работы.")));
   let riskPoint = p.yc >= 3 ? "Риск перебора командных фолов (опасность 10-метровых дабл-пенальти)." : (p.disc < 65 ? "Карточки подводят: дисциплина ниже нормы, рискует оставить команду в меньшинстве." : "Иногда заигрывается и требует подстраховки при контратаках.");
 
   summaryEl.innerHTML = '<div class="mb-2"><span class="px-2.5 py-1 rounded-xl text-xs font-black bg-amber-500/20 text-amber-300 border border-amber-500/30">' + archetype + '</span></div>' +
@@ -1262,19 +1262,21 @@ function updateH2H() {
   const p1Imp = parseInt(document.getElementById("stat-imp").innerText) || 85;
   const p1Disc = parseInt(document.getElementById("stat-disc").innerText) || 70;
   const p1Exp = parseInt(document.getElementById("stat-att").innerText) || 70;
+  const p1Thr = parseInt(document.getElementById("stat-clutch").innerText) || 75;
 
   const rivalStats = {
-    artem: { fin: 76, vis: 92, imp: 88, disc: 90, att: 92 },
-    sergey: { fin: 60, vis: 68, imp: 72, disc: 45, att: 99 },
-    mikhail: { fin: 45, vis: 75, imp: 80, disc: 95, att: 88 }
+    artem: { fin: 76, vis: 92, imp: 88, disc: 90, exp: 88, thr: 85 },
+    sergey: { fin: 60, vis: 68, imp: 72, disc: 45, exp: 95, thr: 64 },
+    mikhail: { fin: 45, vis: 75, imp: 80, disc: 95, exp: 82, thr: 58 }
   }[rivalKey];
 
   const categories = [
-    { label: "Киллер / Финишинг (FIN)", v1: p1Fin, v2: rivalStats.fin },
-    { label: "Видение поля / Ассисты (VIS)", v1: p1Vis, v2: rivalStats.vis },
+    { label: "Киллер / Голы (FIN)", v1: p1Fin, v2: rivalStats.fin },
+    { label: "Плеймейкер / Ассисты (VIS)", v1: p1Vis, v2: rivalStats.vis },
     { label: "Влияние на игру (IMP)", v1: p1Imp, v2: rivalStats.imp },
     { label: "Дисциплина (DISC)", v1: p1Disc, v2: rivalStats.disc },
-    { label: "Посещаемость матчей (ATT)", v1: p1Att, v2: rivalStats.att }
+    { label: "Опыт и карьера (EXP)", v1: p1Exp, v2: rivalStats.exp },
+    { label: "Двусторонняя угроза (THR)", v1: p1Thr, v2: rivalStats.thr }
   ];
 
   const container = document.getElementById("h2h-bars-container");
