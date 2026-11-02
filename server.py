@@ -1068,5 +1068,18 @@ def delete_favorite_endpoint(fav_id: int):
     return {"status": "ok", "deleted": True}
 
 
+def scrape_league_table(source_key: str) -> list[dict]:
+    """Парсит список игроков для вкладки 'Игроки лиг'."""
+    if source_key == "ffge":
+        return search_ffge_source(" ")
+    return search_liga_source(source_key, "")
+
+
+@app.get("/api/players")
+def get_players_endpoint(source: str = Query("liga5x5"), limit: int = Query(100)):
+    players = scrape_league_table(source)
+    return {"source": source, "count": len(players[:limit]), "players": players[:limit]}
+
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
